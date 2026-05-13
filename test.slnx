@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="CountPrimeBenchmark/cs/CountPrimeBenchmark.csproj" />
+  <Project Path="RegexBenchmarks/cs/RegexBenchmark.csproj" />
+  <Project Path="StringConcatBenchmark/cs/StringConcatBenchmark.csproj" />
+  <Project Path="WebServerBenchmark/cs/WebServerBenchmark.csproj" />
+</Solution>
