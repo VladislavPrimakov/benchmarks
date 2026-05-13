@@ -41,12 +41,10 @@ hyperfine \
 ```
 
 <!-- TABLE_START: prime -->
-
-| Language |    Mean [ms] | Min [ms] | Max [ms] |    Relative |
-| :------- | -----------: | -------: | -------: | ----------: |
-| `Rust`   |  288.5 ± 6.8 |    280.6 |    302.0 | 1.00 ± 0.02 |
-| `C#`     | 367.3 ± 11.2 |    358.0 |    391.6 | 1.27 ± 0.04 |
-
+| Language | Mean [ms] | Min [ms] | Max [ms] | Relative |
+| :------- | ----------: | -------: | -------: | ----------: |
+| `Rust` | 288.5 ± 6.8 | 280.6 | 302.0 | 1.00 ± 0.02 |
+| `C#` | 367.3 ± 11.2 | 358.0 | 391.6 | 1.27 ± 0.04 |
 <!-- TABLE_END: prime -->
 
 ## 2. RegexBenchmark
@@ -81,14 +79,12 @@ hyperfine \
 ```
 
 <!-- TABLE_START: regex -->
-
-| Language |      Mean [s] | Min [s] | Max [s] |    Relative |
+| Language | Mean [s] | Min [s] | Max [s] | Relative |
 | :------- | ------------: | ------: | ------: | ----------: |
-| `C`      | 1.234 ± 0.042 |   1.190 |   1.320 | 1.00 ± 0.03 |
-| `Rust`   | 1.707 ± 0.026 |   1.672 |   1.748 | 1.38 ± 0.02 |
-| `C#`     | 2.274 ± 0.020 |   2.246 |   2.315 | 1.84 ± 0.02 |
-| `Python` | 8.334 ± 0.123 |   8.201 |   8.628 | 6.76 ± 0.10 |
-
+| `C` | 1.234 ± 0.042 | 1.190 | 1.320 | 1.00 ± 0.03 |
+| `Rust` | 1.707 ± 0.026 | 1.672 | 1.748 | 1.38 ± 0.02 |
+| `C#` | 2.274 ± 0.020 | 2.246 | 2.315 | 1.84 ± 0.02 |
+| `Python` | 8.334 ± 0.123 | 8.201 | 8.628 | 6.76 ± 0.10 |
 <!-- TABLE_END: regex -->
 
 ## 3. StringConcatBenchmark
@@ -115,12 +111,10 @@ hyperfine -r 3 \
 ```
 
 <!-- TABLE_START: string -->
-
-| Language |      Mean [s] | Min [s] | Max [s] |    Relative |
+| Language | Mean [s] | Min [s] | Max [s] | Relative |
 | :------- | ------------: | ------: | ------: | ----------: |
-| `C`      | 1.158 ± 0.025 |   1.135 |   1.185 | 1.00 ± 0.02 |
-| `C#`     | 1.331 ± 0.013 |   1.319 |   1.344 | 1.15 ± 0.01 |
-
+| `C` | 1.158 ± 0.025 | 1.135 | 1.185 | 1.00 ± 0.02 |
+| `C#` | 1.331 ± 0.013 | 1.319 | 1.344 | 1.15 ± 0.01 |
 <!-- TABLE_END: string -->
 
 ## 4. WebServerBenchmark (Raw HTTP Server: Zerg io_uring vs Kestrel)
@@ -162,12 +156,10 @@ dotnet WebServerBenchmark/csZerg/bin/Release/net10.0/ZergBenchmark.dll > /dev/nu
 **Results (60 seconds, 125 connections):**
 
 <!-- TABLE_START: webserver -->
-
-| Server              | Reqs/sec (Avg ± Stdev) | Relative RPS | Latency (Avg ± Stdev) | Relative Latency | Throughput | Relative Throughput |
-| :------------------ | ---------------------: | -----------: | --------------------: | ---------------: | ---------: | ------------------: |
-| **Kestrel (epoll)** |   199121.88 ± 21332.37 |        0.46x |        0.63 ± 0.06 ms |            2.22x | 29.44 MB/s |               0.92x |
-| **Zerg (io_uring)** |   437121.63 ± 54377.63 |        1.00x |        0.28 ± 0.18 ms |            1.00x | 32.11 MB/s |               1.00x |
-
+| Server | Reqs/sec (Avg ± Stdev) | Relative RPS | Latency (Avg ± Stdev) | Relative Latency | Throughput | Relative Throughput |
+|:---|---:|---:|---:|---:|---:|---:|
+| **Zerg (io_uring)** | 437121.63 ± 54377.63 | 1.00x | 0.28 ± 0.18 ms | 1.00x | 32.11 MB/s | 1.00x |
+| **Kestrel (epoll)** | 199121.88 ± 21332.37 | 0.46x | 0.63 ± 0.06 ms | 2.22x | 29.44 MB/s | 0.92x |
 <!-- TABLE_END: webserver -->
 
 ## 5. Proxy Server Benchmark (YARP vs Nginx)
@@ -200,10 +192,8 @@ dotnet WebServerBenchmark/cs/bin/Release/net10.0/WebServerBenchmark.dll --urls '
 **Results (60 seconds, 125 connections):**
 
 <!-- TABLE_START: proxy -->
-
-| Proxy         | Reqs/sec (Avg ± Stdev) | Relative RPS | Latency (Avg ± Stdev) | Relative Latency | Throughput | Relative Throughput |
-| :------------ | ---------------------: | -----------: | --------------------: | ---------------: | ---------: | ------------------: |
-| **Nginx**     |   116798.14 ± 11689.33 |        1.00x |        1.07 ± 0.13 ms |            1.00x | 23.39 MB/s |               1.00x |
-| **YARP (C#)** |     76256.88 ± 9553.22 |        0.65x |        1.64 ± 0.11 ms |            1.53x | 11.27 MB/s |               0.48x |
-
+| Proxy | Reqs/sec (Avg ± Stdev) | Relative RPS | Latency (Avg ± Stdev) | Relative Latency | Throughput | Relative Throughput |
+|:---|---:|---:|---:|---:|---:|---:|
+| **Nginx** | 116798.14 ± 11689.33 | 1.00x | 1.07 ± 0.13 ms | 1.00x | 23.39 MB/s | 1.00x |
+| **YARP (C#)** | 76256.88 ± 9553.22 | 0.65x | 1.64 ± 0.11 ms | 1.53x | 11.27 MB/s | 0.48x |
 <!-- TABLE_END: proxy -->

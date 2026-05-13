@@ -25,7 +25,7 @@ def parse_hyperfine(json_path):
             
     return rows
 
-def parse_bombardier(json_paths_map):
+def parse_bombardier(json_paths_map, sort_by='rps', reverse=True):
     parsed = []
     for label, path in json_paths_map.items():
         with open(path, 'r') as f:
@@ -40,6 +40,10 @@ def parse_bombardier(json_paths_map):
             'throughput': res['bytesRead'] / (1024 * 1024 * res['timeTakenSeconds'])
         })
     
+    # Sort
+    parsed.sort(key=lambda x: x[sort_by], reverse=reverse)
+
+    # Calculate relatives based on sorted order
     max_rps = max(p['rps'] for p in parsed)
     min_lat = min(p['lat'] for p in parsed)
     max_tp = max(p['throughput'] for p in parsed)
@@ -73,11 +77,11 @@ def update_readme():
 
     # WebServer
     header_web = ["| Server | Reqs/sec (Avg ± Stdev) | Relative RPS | Latency (Avg ± Stdev) | Relative Latency | Throughput | Relative Throughput |", "|:---|---:|---:|---:|---:|---:|---:|"]
-    content = replace_table(content, 'webserver', header_web + parse_bombardier({'Kestrel (epoll)': 'results/kestrel_results.json', 'Zerg (io_uring)': 'results/zerg_results.json'}))
+    content = replace_table(content, 'webserver', header_web + parse_bombardier({'Kestrel (epoll)': 'results/kestrel_results.json', 'Zerg (io_uring)': 'results/zerg_results.json'}, sort_by='rps'))
 
     # Proxy
     header_proxy = ["| Proxy | Reqs/sec (Avg ± Stdev) | Relative RPS | Latency (Avg ± Stdev) | Relative Latency | Throughput | Relative Throughput |", "|:---|---:|---:|---:|---:|---:|---:|"]
-    content = replace_table(content, 'proxy', header_proxy + parse_bombardier({'Nginx': 'results/nginx_results.json', 'YARP (C#)': 'results/yarp_results.json'}))
+    content = replace_table(content, 'proxy', header_proxy + parse_bombardier({'Nginx': 'results/nginx_results.json', 'YARP (C#)': 'results/yarp_results.json'}, sort_by='rps'))
     
     with open('README.md', 'w', encoding='utf-8') as f:
         f.write(content)
