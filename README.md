@@ -13,8 +13,8 @@ To run these benchmarks, you need `hyperfine` and `bombardier` installed on your
 sudo apt install hyperfine
 
 # Install bombardier
-wget https://github.com/codesenberg/bombardier/releases/download/v1.2.6/bombardier-linux-amd64 -O ./WebServerBenchmark/bombardier
-chmod +x ./WebServerBenchmark/bombardier
+wget https://github.com/codesenberg/bombardier/releases/download/v1.2.6/bombardier-linux-amd64 -O ./bombardier
+chmod +x ./bombardier
 ```
 
 ## 1. CountPrimeBenchmark
@@ -37,7 +37,7 @@ cargo build --release --manifest-path CountPrimeBenchmark/rust/CountPrimeBenchma
 hyperfine \
 -n "C#" "./CountPrimeBenchmark/cs/bin/Release/net10.0/linux-x64/CountPrimeBenchmark" \
 -n "Rust" "./CountPrimeBenchmark/rust/target/release/multithread_benchmark" \
---export-json "./results/prime_results.json"
+--export-json "./results/prime.json"
 ```
 
 <!-- TABLE_START: prime -->
@@ -75,7 +75,7 @@ hyperfine \
 -n "C#" "./RegexBenchmark/cs/bin/Release/net10.0/linux-x64/RegexBenchmark" \
 -n "Python" "python3 ./RegexBenchmark/py/RegexBenchmark.py" \
 -n "Rust" "./RegexBenchmark/rust/target/release/regex_benchmark" \
---export-json "./results/regex_results.json"
+--export-json "./results/regex.json"
 ```
 
 <!-- TABLE_START: regex -->
@@ -107,7 +107,7 @@ dotnet build -c Release StringConcatBenchmark/cs/StringConcatBenchmark.csproj
 hyperfine -r 3 \
 -n "C" "./StringConcatBenchmark/c/StringConcatBenchmark_c" \
 -n "C#" "./StringConcatBenchmark/cs/bin/Release/net10.0/StringConcatBenchmark" \
---export-json "./results/string_concat_results.json"
+--export-json "./results/string_concat.json"
 ```
 
 <!-- TABLE_START: string -->
@@ -117,11 +117,11 @@ hyperfine -r 3 \
 | `C#` | 1.331 ± 0.013 | 1.319 | 1.344 | 1.15 ± 0.01 |
 <!-- TABLE_END: string -->
 
-## 4. WebServerBenchmark (Raw HTTP Server: Zerg io_uring vs Kestrel)
+## 4. WebServerBenchmark (Raw HTTP Server)
 
-_Comparing the throughput of a basic plaintext HTTP "Hello World" response between ASP.NET Core Kestrel and the `zerg` io_uring library for Linux._
+_Comparing the throughput of a basic plaintext HTTP "Hello World" response between ASP.NET Core Kestrel, the `zerg` io_uring library for Linux, and Rust Actix-web._
 
-> **Note:** Logging is completely disabled in `Program.cs` (`builder.Logging.ClearProviders()`) and in Nginx (`access_log off;`) to prevent I/O overhead from dropping the Request-Per-Second (RPS) rate.
+> **Note:** Logging is completely disabled to prevent I/O overhead.
 
 **Compilation Commands:**
 
@@ -131,6 +131,9 @@ dotnet build -c Release WebServerBenchmark/cs/WebServerBenchmark.csproj
 
 # Zerg (csZerg)
 dotnet build -c Release WebServerBenchmark/csZerg/ZergBenchmark.csproj
+
+# Actix-web
+cargo build --release --manifest-path WebServerBenchmark/rust_actix/Cargo.toml
 ```
 
 **Start Server Commands (Run in background):**
@@ -141,16 +144,22 @@ dotnet WebServerBenchmark/cs/bin/Release/net10.0/WebServerBenchmark.dll --urls '
 
 # Start Zerg on port 5005
 dotnet WebServerBenchmark/csZerg/bin/Release/net10.0/ZergBenchmark.dll > /dev/null 2>&1 &
+
+# Start Actix on port 5010
+./WebServerBenchmark/rust_actix/target/release/actix_benchmark > /dev/null 2>&1 &
 ```
 
 **Benchmark Commands:**
 
 ```bash
 # Benchmark Kestrel
-./bombardier -c 125 -d 60s -p r -o j http://127.0.0.1:5000/ > ./results/kestrel_results.json
+./bombardier -c 125 -d 60s -p r -o j http://127.0.0.1:5000/ > ./results/webserver_kestrel.json
 
 # Benchmark Zerg
-./bombardier -c 125 -d 60s -p r -o j http://127.0.0.1:5005/ > ./results/zerg_results.json
+./bombardier -c 125 -d 60s -p r -o j http://127.0.0.1:5005/ > ./results/webserver_zerg.json
+
+# Benchmark Actix
+./bombardier -c 125 -d 60s -p r -o j http://127.0.0.1:5010/ > ./results/webserver_actix.json
 ```
 
 **Results (60 seconds, 125 connections):**
@@ -158,8 +167,9 @@ dotnet WebServerBenchmark/csZerg/bin/Release/net10.0/ZergBenchmark.dll > /dev/nu
 <!-- TABLE_START: webserver -->
 | Server | Reqs/sec (Avg ± Stdev) | Relative RPS | Latency (Avg ± Stdev) | Relative Latency | Throughput | Relative Throughput |
 |:---|---:|---:|---:|---:|---:|---:|
-| **Zerg (io_uring)** | 437121.63 ± 54377.63 | 1.00x | 0.28 ± 0.18 ms | 1.00x | 32.11 MB/s | 1.00x |
-| **Kestrel (epoll)** | 199121.88 ± 21332.37 | 0.46x | 0.63 ± 0.06 ms | 2.22x | 29.44 MB/s | 0.92x |
+| **Actix-web (Rust)** | 293419.65 ± 30750.33 | 1.00x | 0.42 ± 0.14 ms | 1.00x | 25.19 MB/s | 0.98x |
+| **Kestrel (epoll)** | 173727.86 ± 15033.87 | 0.59x | 0.72 ± 0.07 ms | 1.70x | 25.68 MB/s | 1.00x |
+| **Zerg (io_uring)** | 98223.09 ± 62662.24 | 0.33x | 1.23 ± 27.21 ms | 2.91x | 1.44 MB/s | 0.06x |
 <!-- TABLE_END: webserver -->
 
 ## 5. Proxy Server Benchmark (YARP vs Nginx)
@@ -183,10 +193,10 @@ dotnet WebServerBenchmark/cs/bin/Release/net10.0/WebServerBenchmark.dll --urls '
 
 ```bash
 # Benchmark YARP (Port 5001)
-./bombardier -c 125 -d 60s -p r -o j http://127.0.0.1:5001/ > ./results/yarp_results.json
+./bombardier -c 125 -d 60s -p r -o j http://127.0.0.1:5001/ > ./results/proxy_yarp.json
 
 # Benchmark Nginx (Port 5002)
-./bombardier -c 125 -d 60s -p r -o j http://127.0.0.1:5002/ > ./results/nginx_results.json
+./bombardier -c 125 -d 60s -p r -o j http://127.0.0.1:5002/ > ./results/proxy_nginx.json
 ```
 
 **Results (60 seconds, 125 connections):**
@@ -194,6 +204,6 @@ dotnet WebServerBenchmark/cs/bin/Release/net10.0/WebServerBenchmark.dll --urls '
 <!-- TABLE_START: proxy -->
 | Proxy | Reqs/sec (Avg ± Stdev) | Relative RPS | Latency (Avg ± Stdev) | Relative Latency | Throughput | Relative Throughput |
 |:---|---:|---:|---:|---:|---:|---:|
-| **Nginx** | 116798.14 ± 11689.33 | 1.00x | 1.07 ± 0.13 ms | 1.00x | 23.39 MB/s | 1.00x |
-| **YARP (C#)** | 76256.88 ± 9553.22 | 0.65x | 1.64 ± 0.11 ms | 1.53x | 11.27 MB/s | 0.48x |
+| **Nginx** | 90509.51 ± 14522.02 | 1.00x | 1.38 ± 0.33 ms | 1.00x | 18.12 MB/s | 1.00x |
+| **YARP (C#)** | 60687.83 ± 9102.02 | 0.67x | 2.06 ± 0.42 ms | 1.49x | 8.97 MB/s | 0.49x |
 <!-- TABLE_END: proxy -->

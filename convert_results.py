@@ -28,18 +28,25 @@ def parse_hyperfine(json_path):
 def parse_bombardier(json_paths_map, sort_by='rps', reverse=True):
     parsed = []
     for label, path in json_paths_map.items():
-        with open(path, 'r') as f:
-            data = json.load(f)
-        res = data['result']
-        parsed.append({
-            'label': label,
-            'rps': res['rps']['mean'],
-            'rps_std': res['rps']['stddev'],
-            'lat': res['latency']['mean'] / 1000,
-            'lat_std': res['latency']['stddev'] / 1000,
-            'throughput': res['bytesRead'] / (1024 * 1024 * res['timeTakenSeconds'])
-        })
+        try:
+            with open(path, 'r') as f:
+                data = json.load(f)
+            res = data['result']
+            parsed.append({
+                'label': label,
+                'rps': res['rps']['mean'],
+                'rps_std': res['rps']['stddev'],
+                'lat': res['latency']['mean'] / 1000,
+                'lat_std': res['latency']['stddev'] / 1000,
+                'throughput': res['bytesRead'] / (1024 * 1024 * res['timeTakenSeconds'])
+            })
+        except (json.JSONDecodeError, KeyError, FileNotFoundError) as e:
+            print(f"Warning: Skipping '{path}' due to error: {e}")
+            continue
     
+    if not parsed:
+        return []
+
     # Sort
     parsed.sort(key=lambda x: x[sort_by], reverse=reverse)
 
@@ -65,23 +72,23 @@ def update_readme():
 
     # Prime
     header_prime = ["| Language | Mean [ms] | Min [ms] | Max [ms] | Relative |", "| :------- | ----------: | -------: | -------: | ----------: |"]
-    content = replace_table(content, 'prime', header_prime + parse_hyperfine('results/prime_results.json'))
+    content = replace_table(content, 'prime', header_prime + parse_hyperfine('results/prime.json'))
 
     # Regex
     header_regex = ["| Language | Mean [s] | Min [s] | Max [s] | Relative |", "| :------- | ------------: | ------: | ------: | ----------: |"]
-    content = replace_table(content, 'regex', header_regex + parse_hyperfine('results/regex_results.json'))
+    content = replace_table(content, 'regex', header_regex + parse_hyperfine('results/regex.json'))
     
     # String
     header_string = ["| Language | Mean [s] | Min [s] | Max [s] | Relative |", "| :------- | ------------: | ------: | ------: | ----------: |"]
-    content = replace_table(content, 'string', header_string + parse_hyperfine('results/string_concat_results.json'))
+    content = replace_table(content, 'string', header_string + parse_hyperfine('results/string_concat.json'))
 
     # WebServer
     header_web = ["| Server | Reqs/sec (Avg ± Stdev) | Relative RPS | Latency (Avg ± Stdev) | Relative Latency | Throughput | Relative Throughput |", "|:---|---:|---:|---:|---:|---:|---:|"]
-    content = replace_table(content, 'webserver', header_web + parse_bombardier({'Kestrel (epoll)': 'results/kestrel_results.json', 'Zerg (io_uring)': 'results/zerg_results.json'}, sort_by='rps'))
+    content = replace_table(content, 'webserver', header_web + parse_bombardier({'Kestrel (epoll)': 'results/webserver_kestrel.json', 'Zerg (io_uring)': 'results/webserver_zerg.json', 'Actix-web (Rust)': 'results/webserver_actix.json'}, sort_by='rps'))
 
     # Proxy
     header_proxy = ["| Proxy | Reqs/sec (Avg ± Stdev) | Relative RPS | Latency (Avg ± Stdev) | Relative Latency | Throughput | Relative Throughput |", "|:---|---:|---:|---:|---:|---:|---:|"]
-    content = replace_table(content, 'proxy', header_proxy + parse_bombardier({'Nginx': 'results/nginx_results.json', 'YARP (C#)': 'results/yarp_results.json'}, sort_by='rps'))
+    content = replace_table(content, 'proxy', header_proxy + parse_bombardier({'Nginx': 'results/proxy_nginx.json', 'YARP (C#)': 'results/proxy_yarp.json'}, sort_by='rps'))
     
     with open('README.md', 'w', encoding='utf-8') as f:
         f.write(content)
