@@ -167,9 +167,9 @@ dotnet WebServerBenchmark/csZerg/bin/Release/net10.0/ZergBenchmark.dll > /dev/nu
 <!-- TABLE_START: webserver -->
 | Server | Reqs/sec (Avg ± Stdev) | Relative RPS | Latency (Avg ± Stdev) | Relative Latency | Throughput | Relative Throughput |
 |:---|---:|---:|---:|---:|---:|---:|
-| **Actix-web (Rust)** | 293419.65 ± 30750.33 | 1.00x | 0.42 ± 0.14 ms | 1.00x | 25.19 MB/s | 0.98x |
-| **Kestrel (epoll)** | 173727.86 ± 15033.87 | 0.59x | 0.72 ± 0.07 ms | 1.70x | 25.68 MB/s | 1.00x |
-| **Zerg (io_uring)** | 98223.09 ± 62662.24 | 0.33x | 1.23 ± 27.21 ms | 2.91x | 1.44 MB/s | 0.06x |
+| **Zerg (io_uring)** | 321171.98 ± 36637.38 | 1.00x | 0.39 ± 0.17 ms | 1.00x | 23.59 MB/s | 0.92x |
+| **Actix-web (Rust)** | 293419.65 ± 30750.33 | 0.91x | 0.42 ± 0.14 ms | 1.10x | 25.19 MB/s | 0.98x |
+| **Kestrel (epoll)** | 173727.86 ± 15033.87 | 0.54x | 0.72 ± 0.07 ms | 1.86x | 25.68 MB/s | 1.00x |
 <!-- TABLE_END: webserver -->
 
 ## 5. Proxy Server Benchmark (YARP vs Nginx)
