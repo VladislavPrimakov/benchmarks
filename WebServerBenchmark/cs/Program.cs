@@ -4,14 +4,13 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Http;
 
-// Используем SlimBuilder, который выкидывает вообще весь лишний встроенный функционал ASP.NET
-// (метрики, избыточный DI, дефолтные проверки), оставляя самый голый и быстрый пайплайн.
-var builder = WebApplication.CreateSlimBuilder(args);
 
-// Отключаем вообще всё логирование для честного бенчмарка (вывод в консоль убивает RPS)
-builder.Logging.ClearProviders();
+var builder = WebApplication.CreateSlimBuilder(new WebApplicationOptions {
+    Args = args,
+    ContentRootPath = AppContext.BaseDirectory
+});
 
-// Оптимизации Kestrel для максимальной пропускной способности
+
 builder.WebHost.ConfigureKestrel(options => {
     options.AddServerHeader = false;
     options.AllowSynchronousIO = false;
@@ -26,11 +25,14 @@ if (mode == "yarp") {
         .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
 }
 
+// Disable all logging for a fair benchmark (writing to console kills RPS)
+builder.Logging.ClearProviders();
+
+
 var app = builder.Build();
 
 if (mode == "api") {
-    app.MapGet("/hello", () => Results.Ok("Hello world!"));
-    app.MapGet("/", () => Results.Ok("Target API Server Running."));
+    app.MapGet("/", () => Results.Ok("Hello world!"));
 } else if (mode == "yarp") {
     app.MapReverseProxy();
 }

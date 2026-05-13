@@ -1,6 +1,21 @@
 # Benchmark Results
 
-Here are the results for the benchmarking runs across different languages and test cases. The tool used for benchmarking was `hyperfine`, which was executed via WSL.
+Here are the results for the benchmarking runs across different languages and test cases.
+
+## Prerequisites
+
+To run these benchmarks, you need `hyperfine` and `bombardier` installed on your system.
+
+### Install Tools
+
+```bash
+# Install hyperfine
+sudo apt install hyperfine
+
+# Install bombardier
+wget https://github.com/codesenberg/bombardier/releases/download/v1.2.6/bombardier-linux-amd64 -O ./WebServerBenchmark/bombardier
+chmod +x ./WebServerBenchmark/bombardier
+```
 
 ## 1. CountPrimeBenchmark
 
@@ -19,15 +34,20 @@ cargo build --release --manifest-path CountPrimeBenchmark/rust/CountPrimeBenchma
 **Benchmark Command:**
 
 ```bash
-wsl hyperfine -r 3 \
-  -n "C#" "./CountPrimeBenchmark/cs/bin/Release/net10.0/linux-x64/CountPrimeBenchmark" \
-  -n "Rust" "./CountPrimeBenchmark/rust/CountPrimeBenchmark/target/release/multithread_benchmark"
+hyperfine \
+-n "C#" "./CountPrimeBenchmark/cs/bin/Release/net10.0/linux-x64/CountPrimeBenchmark" \
+-n "Rust" "./CountPrimeBenchmark/rust/target/release/multithread_benchmark" \
+--export-json "./results/prime_results.json"
 ```
 
-| Language |   Mean [ms] | Min [ms] | Max [ms] |    Relative |
-| :------- | ----------: | -------: | -------: | ----------: |
-| `Rust`   | 280.0 ± 8.4 |    274.4 |    289.7 |        1.00 |
-| `C#`     | 356.7 ± 6.7 |    352.2 |    364.4 | 1.27 ± 0.05 |
+<!-- TABLE_START: prime -->
+
+| Language |    Mean [ms] | Min [ms] | Max [ms] |    Relative |
+| :------- | -----------: | -------: | -------: | ----------: |
+| `Rust`   |  288.5 ± 6.8 |    280.6 |    302.0 | 1.00 ± 0.02 |
+| `C#`     | 367.3 ± 11.2 |    358.0 |    391.6 | 1.27 ± 0.04 |
+
+<!-- TABLE_END: prime -->
 
 ## 2. RegexBenchmark
 
@@ -37,13 +57,13 @@ _Executing regex pattern matching 10 million times._
 
 ```bash
 # C (Requires libpcre2-dev)
-gcc -O3 RegexBenchmarks/c/RegexBenchmark.c -o RegexBenchmarks/c/regex_benchmark_c -lpcre2-8
+gcc -O3 RegexBenchmark/c/RegexBenchmark.c -o RegexBenchmark/c/regex_benchmark_c -lpcre2-8
 
 # C#
-dotnet build -c Release RegexBenchmarks/cs/RegexBenchmark.csproj
+dotnet build -c Release RegexBenchmark/cs/RegexBenchmark.csproj
 
 # Rust
-cargo build --release --manifest-path RegexBenchmarks/rust/RegexBenchmark/Cargo.toml
+cargo build --release --manifest-path RegexBenchmark/rust/RegexBenchmark/Cargo.toml
 
 # Python
 # No compilation required
@@ -52,20 +72,24 @@ cargo build --release --manifest-path RegexBenchmarks/rust/RegexBenchmark/Cargo.
 **Benchmark Command:**
 
 ```bash
-wsl hyperfine -r 3 \
-  -n "C" "./RegexBenchmarks/c/regex_benchmark_c" \
-  -n "C#" "./RegexBenchmarks/cs/bin/Release/net10.0/linux-x64/RegexBenchmark" \
-  -n "Python" "python3 ./RegexBenchmarks/py/RegexBenchmark.py" \
-  -n "Rust" "./RegexBenchmarks/rust/RegexBenchmark/target/release/regex_benchmark" \
-  --export-markdown regex_results.md
+hyperfine \
+-n "C" "./RegexBenchmark/c/regex_benchmark_c" \
+-n "C#" "./RegexBenchmark/cs/bin/Release/net10.0/linux-x64/RegexBenchmark" \
+-n "Python" "python3 ./RegexBenchmark/py/RegexBenchmark.py" \
+-n "Rust" "./RegexBenchmark/rust/target/release/regex_benchmark" \
+--export-json "./results/regex_results.json"
 ```
+
+<!-- TABLE_START: regex -->
 
 | Language |      Mean [s] | Min [s] | Max [s] |    Relative |
 | :------- | ------------: | ------: | ------: | ----------: |
-| `C`      | 1.147 ± 0.019 |   1.129 |   1.167 |        1.00 |
-| `Rust`   | 1.619 ± 0.013 |   1.610 |   1.633 | 1.41 ± 0.03 |
-| `C#`     | 2.129 ± 0.037 |   2.099 |   2.170 | 1.86 ± 0.04 |
-| `Python` | 7.592 ± 0.106 |   7.490 |   7.702 | 6.62 ± 0.14 |
+| `C`      | 1.234 ± 0.042 |   1.190 |   1.320 | 1.00 ± 0.03 |
+| `Rust`   | 1.707 ± 0.026 |   1.672 |   1.748 | 1.38 ± 0.02 |
+| `C#`     | 2.274 ± 0.020 |   2.246 |   2.315 | 1.84 ± 0.02 |
+| `Python` | 8.334 ± 0.123 |   8.201 |   8.628 | 6.76 ± 0.10 |
+
+<!-- TABLE_END: regex -->
 
 ## 3. StringConcatBenchmark
 
@@ -84,29 +108,26 @@ dotnet build -c Release StringConcatBenchmark/cs/StringConcatBenchmark.csproj
 **Benchmark Command:**
 
 ```bash
-wsl hyperfine -r 3 \
-  -n "C" "./StringConcatBenchmark/c/StringConcatBenchmark_c" \
-  -n "C#" "./StringConcatBenchmark/cs/bin/Release/net10.0/StringConcatBenchmark"
+hyperfine -r 3 \
+-n "C" "./StringConcatBenchmark/c/StringConcatBenchmark_c" \
+-n "C#" "./StringConcatBenchmark/cs/bin/Release/net10.0/StringConcatBenchmark" \
+--export-json "./results/string_concat_results.json"
 ```
+
+<!-- TABLE_START: string -->
 
 | Language |      Mean [s] | Min [s] | Max [s] |    Relative |
 | :------- | ------------: | ------: | ------: | ----------: |
-| `C`      | 1.054 ± 0.018 |   1.034 |   1.067 |        1.00 |
-| `C#`     | 1.208 ± 0.008 |   1.203 |   1.217 | 1.15 ± 0.02 |
+| `C`      | 1.158 ± 0.025 |   1.135 |   1.185 | 1.00 ± 0.02 |
+| `C#`     | 1.331 ± 0.013 |   1.319 |   1.344 | 1.15 ± 0.01 |
+
+<!-- TABLE_END: string -->
 
 ## 4. WebServerBenchmark (Raw HTTP Server: Zerg io_uring vs Kestrel)
 
 _Comparing the throughput of a basic plaintext HTTP "Hello World" response between ASP.NET Core Kestrel and the `zerg` io_uring library for Linux._
 
 > **Note:** Logging is completely disabled in `Program.cs` (`builder.Logging.ClearProviders()`) and in Nginx (`access_log off;`) to prevent I/O overhead from dropping the Request-Per-Second (RPS) rate.
-
-**Prerequisites:**
-Download `bombardier` and make it executable:
-
-```bash
-wget https://github.com/codesenberg/bombardier/releases/download/v1.2.6/bombardier-linux-amd64 -O WebServerBenchmark/bombardier-linux-amd64
-chmod +x WebServerBenchmark/bombardier-linux-amd64
-```
 
 **Compilation Commands:**
 
@@ -122,27 +143,32 @@ dotnet build -c Release WebServerBenchmark/csZerg/ZergBenchmark.csproj
 
 ```bash
 # Start Kestrel on port 5000
-wsl bash -c "cd WebServerBenchmark/cs && dotnet bin/Release/net10.0/WebServerBenchmark.dll --urls 'http://127.0.0.1:5000' --mode api &"
+dotnet WebServerBenchmark/cs/bin/Release/net10.0/WebServerBenchmark.dll --urls 'http://127.0.0.1:5000' --mode api &
 
 # Start Zerg on port 5005
-wsl bash -c "dotnet WebServerBenchmark/csZerg/bin/Release/net10.0/ZergBenchmark.dll &"
+dotnet WebServerBenchmark/csZerg/bin/Release/net10.0/ZergBenchmark.dll > /dev/null 2>&1 &
 ```
 
 **Benchmark Commands:**
 
 ```bash
 # Benchmark Kestrel
-wsl ./WebServerBenchmark/bombardier-linux-amd64 -c 125 -d 60s http://127.0.0.1:5000/hello
+./bombardier -c 125 -d 60s -p r -o j http://127.0.0.1:5000/ > ./results/kestrel_results.json
 
 # Benchmark Zerg
-wsl ./WebServerBenchmark/bombardier-linux-amd64 -c 125 -d 60s http://127.0.0.1:5005/
+./bombardier -c 125 -d 60s -p r -o j http://127.0.0.1:5005/ > ./results/zerg_results.json
 ```
 
 **Results (60 seconds, 125 connections):**
-| Server | Reqs/sec (Avg ± Stdev) | Relative RPS | Latency (Avg ± Stdev) | Relative Latency | Throughput | Relative Throughput |
-|:---|---:|---:|---:|---:|---:|---:|
-| **Zerg (io_uring)** | 433,225.04 ± 59,131.77 | 2.23x | 285.43 ± 196.37 µs | 1.00x | 57.42 MB/s | 1.40x |
-| **Kestrel (epoll)** | 194,502.01 ± 20,924.64 | 1.00x | 640.68 ± 410.26 µs | 2.24x | 41.16 MB/s | 1.00x |
+
+<!-- TABLE_START: webserver -->
+
+| Server              | Reqs/sec (Avg ± Stdev) | Relative RPS | Latency (Avg ± Stdev) | Relative Latency | Throughput | Relative Throughput |
+| :------------------ | ---------------------: | -----------: | --------------------: | ---------------: | ---------: | ------------------: |
+| **Kestrel (epoll)** |   199121.88 ± 21332.37 |        0.46x |        0.63 ± 0.06 ms |            2.22x | 29.44 MB/s |               0.92x |
+| **Zerg (io_uring)** |   437121.63 ± 54377.63 |        1.00x |        0.28 ± 0.18 ms |            1.00x | 32.11 MB/s |               1.00x |
+
+<!-- TABLE_END: webserver -->
 
 ## 5. Proxy Server Benchmark (YARP vs Nginx)
 
@@ -152,28 +178,32 @@ _Comparing the C# YARP (Yet Another Reverse Proxy) against Nginx, both routing t
 
 ```bash
 # Nginx
-wsl -u root apt-get install -y nginx
-wsl -u root cp WebServerBenchmark/nginx/nginx.conf /etc/nginx/nginx.conf
-wsl -u root service nginx restart
+-u root apt-get install -y nginx
+-u root cp WebServerBenchmark/nginx/nginx.conf /etc/nginx/nginx.conf
+-u root service nginx restart
 
 # Start target API (port 5000) and YARP proxy (port 5001) in background
-wsl bash -c "cd WebServerBenchmark/cs && dotnet bin/Release/net10.0/WebServerBenchmark.dll --urls 'http://127.0.0.1:5000' --mode api &"
-wsl bash -c "cd WebServerBenchmark/cs && dotnet bin/Release/net10.0/WebServerBenchmark.dll --urls 'http://127.0.0.1:5001' --mode yarp &"
+dotnet WebServerBenchmark/cs/bin/Release/net10.0/WebServerBenchmark.dll --urls 'http://127.0.0.1:5000' --mode api &
+dotnet WebServerBenchmark/cs/bin/Release/net10.0/WebServerBenchmark.dll --urls 'http://127.0.0.1:5001' --mode yarp &
 ```
 
 **Benchmark Commands:**
 
 ```bash
 # Benchmark YARP (Port 5001)
-wsl ./WebServerBenchmark/bombardier-linux-amd64 -c 125 -d 60s http://127.0.0.1:5001/hello
+./bombardier -c 125 -d 60s -p r -o j http://127.0.0.1:5001/ > ./results/yarp_results.json
 
 # Benchmark Nginx (Port 5002)
-wsl ./WebServerBenchmark/bombardier-linux-amd64 -c 125 -d 60s http://127.0.0.1:5002/hello
+./bombardier -c 125 -d 60s -p r -o j http://127.0.0.1:5002/ > ./results/nginx_results.json
 ```
 
 **Results (60 seconds, 125 connections):**
-| Proxy | Reqs/sec (Avg ± Stdev) | Relative RPS | Latency (Avg ± Stdev) | Relative Latency | Throughput | Relative Throughput |
-|:---|---:|---:|---:|---:|---:|---:|
-| **Nginx** | 109,443.38 ± 10,943.44 | 1.60x | 1.14 ms ± 215.57 µs | 1.00x | 28.90 MB/s | 2.00x |
-| **YARP (C#)** | 68,312.23 ± 10,293.97 | 1.00x | 1.83 ± 0.95 ms | 1.61x | 14.46 MB/s | 1.00x |
 
+<!-- TABLE_START: proxy -->
+
+| Proxy         | Reqs/sec (Avg ± Stdev) | Relative RPS | Latency (Avg ± Stdev) | Relative Latency | Throughput | Relative Throughput |
+| :------------ | ---------------------: | -----------: | --------------------: | ---------------: | ---------: | ------------------: |
+| **Nginx**     |   116798.14 ± 11689.33 |        1.00x |        1.07 ± 0.13 ms |            1.00x | 23.39 MB/s |               1.00x |
+| **YARP (C#)** |     76256.88 ± 9553.22 |        0.65x |        1.64 ± 0.11 ms |            1.53x | 11.27 MB/s |               0.48x |
+
+<!-- TABLE_END: proxy -->

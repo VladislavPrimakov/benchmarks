@@ -1,0 +1,15 @@
+[package]
+name = "regex_benchmark"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+regex = "1.10.4"
+
+# Maximum optimization for speed and minimal size
+[profile.release]
+opt-level = 3       # Maximum speed optimization
+lto = true          # Enable Link-Time Optimization (removes dead code)
+codegen-units = 1   # Build as a single unit (squeeze maximum speed at the cost of longer build time)
+panic = "abort"     # Remove heavy stack unwinding system
+strip = true        # Remove extra debug symbols (like in C#)

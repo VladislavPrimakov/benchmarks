@@ -24,9 +24,8 @@ StringConcatBenchmark/c/StringConcatBenchmark_c
 .DS_Store
 Thumbs.db
 
-# Test outputs
-# *.md (if you want to ignore all markdown except README, uncomment below)
-# !README.md
-
 # Bombarder binary
-bombardier-linux-amd64
+bombardier
+
+# results
+/results

@@ -5,17 +5,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    
-    <!-- Native AOT settings -->
-    <PublishAot>true</PublishAot>
-    <!-- Trimming for maximum binary size reduction -->
-    <OptimizationPreference>Size</OptimizationPreference>
     <InvariantGlobalization>true</InvariantGlobalization>
-    <StackTraceSupport>false</StackTraceSupport>
-    <EventSourceSupport>false</EventSourceSupport>
-    <UseSystemResourceKeys>true</UseSystemResourceKeys>
-    <DebuggerSupport>false</DebuggerSupport>
-    <StripSymbols>true</StripSymbols>
   </PropertyGroup>
 
 </Project>

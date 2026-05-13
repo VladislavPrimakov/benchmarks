@@ -48,7 +48,6 @@ namespace ZergBenchmark
             });
 
             engine.Listen();
-            Console.WriteLine("Zerg Server Running on port 5005");
 
             while (engine.ServerRunning)
             {
