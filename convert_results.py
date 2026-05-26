@@ -84,11 +84,21 @@ def update_readme():
 
     # WebServer
     header_web = ["| Server | Reqs/sec (Avg ± Stdev) | Relative RPS | Latency (Avg ± Stdev) | Relative Latency | Throughput | Relative Throughput |", "|:---|---:|---:|---:|---:|---:|---:|"]
-    content = replace_table(content, 'webserver', header_web + parse_bombardier({'Kestrel (epoll)': 'results/webserver_kestrel.json', 'Zerg (io_uring)': 'results/webserver_zerg.json', 'Actix-web (Rust)': 'results/webserver_actix.json'}, sort_by='rps'))
+    content = replace_table(content, 'webserver', header_web + parse_bombardier({
+        'Zerg (JIT)': 'results/webserver_zerg_jit.json',
+        'Zerg (AOT)': 'results/webserver_zerg_aot.json',
+        'Actix-web (Rust)': 'results/webserver_actix.json',
+        'Kestrel (JIT)': 'results/webserver_kestrel_jit.json',
+        'Kestrel (AOT)': 'results/webserver_kestrel_aot.json'
+    }, sort_by='rps'))
 
     # Proxy
     header_proxy = ["| Proxy | Reqs/sec (Avg ± Stdev) | Relative RPS | Latency (Avg ± Stdev) | Relative Latency | Throughput | Relative Throughput |", "|:---|---:|---:|---:|---:|---:|---:|"]
-    content = replace_table(content, 'proxy', header_proxy + parse_bombardier({'Nginx': 'results/proxy_nginx.json', 'YARP (C#)': 'results/proxy_yarp.json'}, sort_by='rps'))
+    content = replace_table(content, 'proxy', header_proxy + parse_bombardier({
+        'Nginx': 'results/proxy_nginx.json',
+        'YARP (JIT)': 'results/proxy_yarp_jit.json',
+        'YARP (AOT)': 'results/proxy_yarp_aot.json'
+    }, sort_by='rps'))
     
     with open('README.md', 'w', encoding='utf-8') as f:
         f.write(content)

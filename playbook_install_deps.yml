@@ -1,0 +1,99 @@
+---
+- name: Check and Install hyperfine
+  block:
+    - name: Check if hyperfine is installed
+      ansible.builtin.command: hyperfine --version
+      register: hyperfine_check
+      ignore_errors: true
+      changed_when: false
+
+    - name: Install hyperfine if missing
+      ansible.builtin.apt:
+        name: hyperfine
+        state: present
+      become: true
+      ignore_errors: true
+      when: hyperfine_check.failed
+  when: need_hyperfine | default(false)
+
+- name: Check and Download bombardier
+  block:
+    - name: Check if bombardier exists
+      ansible.builtin.stat:
+        path: "./bombardier"
+      register: bombardier_stat
+
+    - name: Download bombardier if missing
+      ansible.builtin.get_url:
+        url: "https://github.com/codesenberg/bombardier/releases/download/v1.2.6/bombardier-linux-amd64"
+        dest: "./bombardier"
+        mode: "0755"
+      when: not (bombardier_stat.stat.exists | default(false))
+  when: need_bombardier | default(false)
+
+- name: Check and Install .NET SDK
+  block:
+    - name: Check if dotnet CLI is installed
+      ansible.builtin.command: dotnet --version
+      register: dotnet_check
+      ignore_errors: true
+      changed_when: false
+
+    - name: Install .NET SDK if missing or version mismatch
+      block:
+        - name: Download dotnet-install script
+          ansible.builtin.get_url:
+            url: "https://dot.net/v1/dotnet-install.sh"
+            dest: "/tmp/dotnet-install.sh"
+            mode: "0755"
+
+        - name: Install .NET SDK via official script
+          ansible.builtin.shell: "/tmp/dotnet-install.sh --channel {{ dotnet_version | default('10.0') }} --install-dir /usr/share/dotnet && ln -sf /usr/share/dotnet/dotnet /usr/bin/dotnet"
+          become: true
+      when: dotnet_check.failed or not (dotnet_check.stdout | default('')) is search('^' + (dotnet_version | default('10.0')))
+  when: need_dotnet | default(false)
+
+- name: Check and Install Rust (cargo)
+  block:
+    - name: Check if cargo (Rust) is installed
+      ansible.builtin.command: cargo --version
+      register: cargo_check
+      ignore_errors: true
+      changed_when: false
+
+    - name: Install Rust (cargo) via rustup if missing
+      ansible.builtin.shell: "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y"
+      when: cargo_check.failed
+  when: need_cargo | default(false)
+
+- name: Check and Install python3
+  block:
+    - name: Check if python3 is installed
+      ansible.builtin.command: python3 --version
+      register: python_check
+      ignore_errors: true
+      changed_when: false
+
+    - name: Install python3 if missing
+      ansible.builtin.apt:
+        name: python3
+        state: latest
+      become: true
+      when: python_check.failed
+  when: need_python | default(false)
+
+- name: Check and Install gcc
+  block:
+    - name: Check if gcc is installed
+      ansible.builtin.command: gcc --version
+      register: gcc_check
+      ignore_errors: true
+      changed_when: false
+
+    - name: Install gcc if missing
+      ansible.builtin.apt:
+        name: gcc
+        state: latest
+      become: true
+      when: gcc_check.failed
+  when: need_gcc | default(false)

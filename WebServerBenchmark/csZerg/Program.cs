@@ -1,5 +1,4 @@
 using System;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using zerg;
@@ -16,35 +15,19 @@ namespace ZergBenchmark
 
         static async Task Main(string[] args)
         {
+            ushort port = 5005;
+            if (args.Length > 0 && ushort.TryParse(args[0], out ushort parsedPort))
+            {
+                port = parsedPort;
+            }
+
             int reactorCount = Environment.ProcessorCount;
             var engine = new Engine(new EngineOptions
             {
                 Ip = "0.0.0.0",
-                Port = 5005,
-                Backlog = 65535,
+                Port = port,
                 ReactorCount = reactorCount,
-                AcceptorConfig = new AcceptorConfig(
-                    RingFlags: 0,
-                    SqCpuThread: -1,
-                    SqThreadIdleMs: 100,
-                    RingEntries: 8 * 1024,
-                    BatchSqes: 4096,
-                    CqTimeout: 100_000_000,
-                    IPVersion: IPVersion.IPv6DualStack
-                ),
-                ReactorConfigs = Enumerable.Range(0, reactorCount).Select(_ => new ReactorConfig(
-                    RingFlags: (1u << 12) | (1u << 13), // SINGLE_ISSUER | DEFER_TASKRUN
-                    SqCpuThread: -1,
-                    SqThreadIdleMs: 100,
-                    RingEntries: 8 * 1024,
-                    RecvBufferSize: 4 * 1024,
-                    BufferRingEntries: 16 * 1024,
-                    BatchCqes: 4096,
-                    MaxConnectionsPerReactor: 8 * 1024,
-                    CqTimeout: 1_000_000,
-                    ConnectionBufferRingEntries: 32,
-                    IncrementalBufferConsumption: false
-                )).ToArray()
+                AcceptorConfig = new AcceptorConfig(IPVersion: IPVersion.IPv6DualStack)
             });
 
             engine.Listen();

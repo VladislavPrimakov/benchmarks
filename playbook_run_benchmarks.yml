@@ -1,0 +1,405 @@
+---
+- name: Run Performance Benchmarks
+  hosts: localhost
+  connection: local
+  gather_facts: true
+
+  environment:
+    PATH: "{{ ansible_env.HOME }}/.cargo/bin:{{ ansible_env.PATH }}"
+
+  vars_prompt:
+    - name: ansible_become_password
+      prompt: "Sudo password (required for Nginx restart)"
+      private: true
+
+  vars:
+    compile_timeout: 600
+    async_poll: 0
+    wait_retries: 300
+    wait_delay: 1
+    server_timeout: 100
+    port_timeout: 10
+    bombardier_connections: 125
+    bombardier_duration: 60s
+    dotnet_version: "10.0"
+
+  tasks:
+    - name: Ensure results directory exists
+      ansible.builtin.file:
+        path: "./results"
+        state: directory
+        mode: "0755"
+      tags: [always]
+
+    # --- 1. CountPrimeBenchmark ---
+    - name: CountPrimeBenchmark Section
+      block:
+        - name: Ensure dependencies are installed
+          ansible.builtin.include_tasks: playbook_install_deps.yml
+          vars:
+            need_hyperfine: true
+            need_dotnet: true
+            need_cargo: true
+
+        - name: Compile CountPrimeBenchmark (C# JIT)
+          ansible.builtin.command: dotnet build -c Release -o CountPrimeBenchmark/cs/bin/Release/jit /p:TargetFramework=net{{ dotnet_version }} CountPrimeBenchmark/cs/CountPrimeBenchmark.csproj
+          async: "{{ compile_timeout }}"
+          poll: "{{ async_poll }}"
+          register: cp_jit_job
+          changed_when: false
+
+        - name: Compile CountPrimeBenchmark (C# AOT)
+          ansible.builtin.shell: "dotnet restore -r linux-x64 /p:TargetFramework=net{{ dotnet_version }} CountPrimeBenchmark/cs/CountPrimeBenchmark.csproj && dotnet build -c Release -r linux-x64 -o CountPrimeBenchmark/cs/bin/Release/aot /p:PublishAot=true /p:TargetFramework=net{{ dotnet_version }} CountPrimeBenchmark/cs/CountPrimeBenchmark.csproj"
+          async: "{{ compile_timeout }}"
+          poll: "{{ async_poll }}"
+          register: cp_aot_job
+          changed_when: false
+
+        - name: Compile CountPrimeBenchmark (Rust)
+          ansible.builtin.command: cargo build --release --manifest-path CountPrimeBenchmark/rust/Cargo.toml
+          async: "{{ compile_timeout }}"
+          poll: "{{ async_poll }}"
+          register: cp_rust_job
+          changed_when: false
+
+        - name: Wait for CountPrimeBenchmark compilation jobs to complete
+          ansible.builtin.async_status:
+            jid: "{{ item.ansible_job_id }}"
+          register: cp_job_results
+          until: cp_job_results.finished
+          retries: "{{ wait_retries }}"
+          delay: "{{ wait_delay }}"
+          loop:
+            - "{{ cp_jit_job }}"
+            - "{{ cp_aot_job }}"
+            - "{{ cp_rust_job }}"
+
+        - name: Run hyperfine for CountPrimeBenchmark
+          ansible.builtin.command: >
+            hyperfine
+            -n "C# (JIT)" "./CountPrimeBenchmark/cs/bin/Release/jit/CountPrimeBenchmark"
+            -n "C# (AOT)" "./CountPrimeBenchmark/cs/bin/Release/aot/CountPrimeBenchmark"
+            -n "Rust" "./CountPrimeBenchmark/rust/target/release/multithread_benchmark"
+            --export-json "./results/prime.json"
+          changed_when: false
+      tags: [prime]
+
+    # --- 2. RegexBenchmark ---
+    - name: RegexBenchmark Section
+      block:
+        - name: Ensure dependencies are installed
+          ansible.builtin.include_tasks: playbook_install_deps.yml
+          vars:
+            need_hyperfine: true
+            need_dotnet: true
+            need_cargo: true
+            need_python: true
+            need_gcc: true
+
+        - name: Compile RegexBenchmark (C)
+          ansible.builtin.command: gcc -O3 RegexBenchmark/c/RegexBenchmark.c -o RegexBenchmark/c/regex_benchmark_c -lpcre2-8
+          async: "{{ compile_timeout }}"
+          poll: "{{ async_poll }}"
+          register: rx_c_job
+          changed_when: false
+
+        - name: Compile RegexBenchmark (C# JIT)
+          ansible.builtin.command: dotnet build -c Release -o RegexBenchmark/cs/bin/Release/jit /p:TargetFramework=net{{ dotnet_version }} RegexBenchmark/cs/RegexBenchmark.csproj
+          async: "{{ compile_timeout }}"
+          poll: "{{ async_poll }}"
+          register: rx_jit_job
+          changed_when: false
+
+        - name: Compile RegexBenchmark (C# AOT)
+          ansible.builtin.shell: "dotnet restore -r linux-x64 /p:TargetFramework=net{{ dotnet_version }} RegexBenchmark/cs/RegexBenchmark.csproj && dotnet build -c Release -r linux-x64 -o RegexBenchmark/cs/bin/Release/aot /p:PublishAot=true /p:TargetFramework=net{{ dotnet_version }} RegexBenchmark/cs/RegexBenchmark.csproj"
+          async: "{{ compile_timeout }}"
+          poll: "{{ async_poll }}"
+          register: rx_aot_job
+          changed_when: false
+
+        - name: Compile RegexBenchmark (Rust)
+          ansible.builtin.command: cargo build --release --manifest-path RegexBenchmark/rust/Cargo.toml
+          async: "{{ compile_timeout }}"
+          poll: "{{ async_poll }}"
+          register: rx_rust_job
+          changed_when: false
+
+        - name: Wait for RegexBenchmark compilation jobs to complete
+          ansible.builtin.async_status:
+            jid: "{{ item.ansible_job_id }}"
+          register: rx_job_results
+          until: rx_job_results.finished
+          retries: "{{ wait_retries }}"
+          delay: "{{ wait_delay }}"
+          loop:
+            - "{{ rx_c_job }}"
+            - "{{ rx_jit_job }}"
+            - "{{ rx_aot_job }}"
+            - "{{ rx_rust_job }}"
+
+        - name: Run hyperfine for RegexBenchmark
+          ansible.builtin.command: >
+            hyperfine
+            -n "C" "./RegexBenchmark/c/regex_benchmark_c"
+            -n "C# (JIT)" "./RegexBenchmark/cs/bin/Release/jit/RegexBenchmark"
+            -n "C# (AOT)" "./RegexBenchmark/cs/bin/Release/aot/RegexBenchmark"
+            -n "Python" "python3 ./RegexBenchmark/py/RegexBenchmark.py"
+            -n "Rust" "./RegexBenchmark/rust/target/release/regex_benchmark"
+            --export-json "./results/regex.json"
+          changed_when: false
+      tags: [regex]
+
+    # --- 3. StringConcatBenchmark ---
+    - name: StringConcatBenchmark Section
+      block:
+        - name: Ensure dependencies are installed
+          ansible.builtin.include_tasks: playbook_install_deps.yml
+          vars:
+            need_hyperfine: true
+            need_dotnet: true
+            need_gcc: true
+
+        - name: Compile StringConcatBenchmark (C)
+          ansible.builtin.command: gcc -O3 StringConcatBenchmark/c/StringConcatBenchmark.c -o StringConcatBenchmark/c/StringConcatBenchmark_c
+          async: "{{ compile_timeout }}"
+          poll: "{{ async_poll }}"
+          register: sc_c_job
+          changed_when: false
+
+        - name: Compile StringConcatBenchmark (C# JIT)
+          ansible.builtin.command: dotnet build -c Release -o StringConcatBenchmark/cs/bin/Release/jit /p:TargetFramework=net{{ dotnet_version }} StringConcatBenchmark/cs/StringConcatBenchmark.csproj
+          async: "{{ compile_timeout }}"
+          poll: "{{ async_poll }}"
+          register: sc_jit_job
+          changed_when: false
+
+        - name: Compile StringConcatBenchmark (C# AOT)
+          ansible.builtin.shell: "dotnet restore -r linux-x64 /p:TargetFramework=net{{ dotnet_version }} StringConcatBenchmark/cs/StringConcatBenchmark.csproj && dotnet build -c Release -r linux-x64 -o StringConcatBenchmark/cs/bin/Release/aot /p:PublishAot=true /p:TargetFramework=net{{ dotnet_version }} StringConcatBenchmark/cs/StringConcatBenchmark.csproj"
+          async: "{{ compile_timeout }}"
+          poll: "{{ async_poll }}"
+          register: sc_aot_job
+          changed_when: false
+
+        - name: Wait for StringConcatBenchmark compilation jobs to complete
+          ansible.builtin.async_status:
+            jid: "{{ item.ansible_job_id }}"
+          register: sc_job_results
+          until: sc_job_results.finished
+          retries: "{{ wait_retries }}"
+          delay: "{{ wait_delay }}"
+          loop:
+            - "{{ sc_c_job }}"
+            - "{{ sc_jit_job }}"
+            - "{{ sc_aot_job }}"
+
+        - name: Run hyperfine for StringConcatBenchmark
+          ansible.builtin.command: >
+            hyperfine -r 3
+            -n "C" "./StringConcatBenchmark/c/StringConcatBenchmark_c"
+            -n "C# (JIT)" "./StringConcatBenchmark/cs/bin/Release/jit/StringConcatBenchmark"
+            -n "C# (AOT)" "./StringConcatBenchmark/cs/bin/Release/aot/StringConcatBenchmark"
+            --export-json "./results/string_concat.json"
+          changed_when: false
+      tags: [string]
+
+    # --- 4. WebServerBenchmark ---
+    - name: WebServerBenchmark Section
+      block:
+        - name: Ensure dependencies are installed
+          ansible.builtin.include_tasks: playbook_install_deps.yml
+          vars:
+            need_bombardier: true
+            need_dotnet: true
+            need_cargo: true
+
+        - name: Compile WebServerBenchmark - Kestrel (JIT)
+          ansible.builtin.command: dotnet build -c Release -o WebServerBenchmark/cs/bin/Release/jit /p:TargetFramework=net{{ dotnet_version }} WebServerBenchmark/cs/WebServerBenchmark.csproj
+          async: "{{ compile_timeout }}"
+          poll: "{{ async_poll }}"
+          register: ws_k_jit_job
+          changed_when: false
+
+        - name: Compile WebServerBenchmark - Kestrel (AOT)
+          ansible.builtin.shell: "dotnet restore -r linux-x64 /p:TargetFramework=net{{ dotnet_version }} WebServerBenchmark/cs/WebServerBenchmark.csproj && dotnet build -c Release -r linux-x64 -o WebServerBenchmark/cs/bin/Release/aot /p:PublishAot=true /p:TargetFramework=net{{ dotnet_version }} WebServerBenchmark/cs/WebServerBenchmark.csproj"
+          async: "{{ compile_timeout }}"
+          poll: "{{ async_poll }}"
+          register: ws_k_aot_job
+          changed_when: false
+
+        - name: Compile WebServerBenchmark - Zerg (JIT)
+          ansible.builtin.command: dotnet build -c Release -o WebServerBenchmark/csZerg/bin/Release/jit /p:TargetFramework=net{{ dotnet_version }} WebServerBenchmark/csZerg/ZergBenchmark.csproj
+          async: "{{ compile_timeout }}"
+          poll: "{{ async_poll }}"
+          register: ws_z_jit_job
+          changed_when: false
+
+        - name: Compile WebServerBenchmark - Zerg (AOT)
+          ansible.builtin.shell: "dotnet restore -r linux-x64 /p:TargetFramework=net{{ dotnet_version }} WebServerBenchmark/csZerg/ZergBenchmark.csproj && dotnet build -c Release -r linux-x64 -o WebServerBenchmark/csZerg/bin/Release/aot /p:PublishAot=true /p:TargetFramework=net{{ dotnet_version }} WebServerBenchmark/csZerg/ZergBenchmark.csproj"
+          async: "{{ compile_timeout }}"
+          poll: "{{ async_poll }}"
+          register: ws_z_aot_job
+          changed_when: false
+
+        - name: Compile WebServerBenchmark - Actix (Rust)
+          ansible.builtin.command: cargo build --release --manifest-path WebServerBenchmark/rust_actix/Cargo.toml
+          async: "{{ compile_timeout }}"
+          poll: "{{ async_poll }}"
+          register: ws_actix_job
+          changed_when: false
+
+        - name: Wait for WebServerBenchmark compilation jobs to complete
+          ansible.builtin.async_status:
+            jid: "{{ item.ansible_job_id }}"
+          register: ws_job_results
+          until: ws_job_results.finished
+          retries: "{{ wait_retries }}"
+          delay: "{{ wait_delay }}"
+          loop:
+            - "{{ ws_k_jit_job }}"
+            - "{{ ws_k_aot_job }}"
+            - "{{ ws_z_jit_job }}"
+            - "{{ ws_z_aot_job }}"
+            - "{{ ws_actix_job }}"
+
+        - name: Run WebServer Benchmarks
+          block:
+            - name: Start Kestrel (JIT) in background
+              ansible.builtin.shell: "./WebServerBenchmark/cs/bin/Release/jit/WebServerBenchmark --urls 'http://127.0.0.1:5000' --mode api &"
+              async: "{{ server_timeout }}"
+              poll: "{{ async_poll }}"
+              changed_when: false
+
+            - name: Start Kestrel (AOT) in background
+              ansible.builtin.shell: "./WebServerBenchmark/cs/bin/Release/aot/WebServerBenchmark --urls 'http://127.0.0.1:5003' --mode api &"
+              async: "{{ server_timeout }}"
+              poll: "{{ async_poll }}"
+              changed_when: false
+
+            - name: Start Zerg (JIT) in background
+              ansible.builtin.shell: "./WebServerBenchmark/csZerg/bin/Release/jit/ZergBenchmark 5005 > /dev/null 2>&1 &"
+              async: "{{ server_timeout }}"
+              poll: "{{ async_poll }}"
+              changed_when: false
+
+            - name: Start Zerg (AOT) in background
+              ansible.builtin.shell: "./WebServerBenchmark/csZerg/bin/Release/aot/ZergBenchmark 5006 > /dev/null 2>&1 &"
+              async: "{{ server_timeout }}"
+              poll: "{{ async_poll }}"
+              changed_when: false
+
+            - name: Start Actix (Rust) in background
+              ansible.builtin.shell: "./WebServerBenchmark/rust_actix/target/release/actix_benchmark > /dev/null 2>&1 &"
+              async: "{{ server_timeout }}"
+              poll: "{{ async_poll }}"
+              changed_when: false
+
+            - name: Wait for all web servers to start
+              ansible.builtin.wait_for:
+                port: "{{ item }}"
+                timeout: "{{ port_timeout }}"
+              loop: [5000, 5003, 5005, 5006, 5010]
+
+            - name: Benchmark Kestrel (JIT)
+              ansible.builtin.shell: "./bombardier -c {{ bombardier_connections }} -d {{ bombardier_duration }} -p r -o j http://127.0.0.1:5000/ > ./results/webserver_kestrel_jit.json"
+              changed_when: false
+
+            - name: Benchmark Kestrel (AOT)
+              ansible.builtin.shell: "./bombardier -c {{ bombardier_connections }} -d {{ bombardier_duration }} -p r -o j http://127.0.0.1:5003/ > ./results/webserver_kestrel_aot.json"
+              changed_when: false
+
+            - name: Benchmark Zerg (JIT)
+              ansible.builtin.shell: "./bombardier -c {{ bombardier_connections }} -d {{ bombardier_duration }} -p r -o j http://127.0.0.1:5005/ > ./results/webserver_zerg_jit.json"
+              changed_when: false
+
+            - name: Benchmark Zerg (AOT)
+              ansible.builtin.shell: "./bombardier -c {{ bombardier_connections }} -d {{ bombardier_duration }} -p r -o j http://127.0.0.1:5006/ > ./results/webserver_zerg_aot.json"
+              changed_when: false
+
+            - name: Benchmark Actix
+              ansible.builtin.shell: "./bombardier -c {{ bombardier_connections }} -d {{ bombardier_duration }} -p r -o j http://127.0.0.1:5010/ > ./results/webserver_actix.json"
+              changed_when: false
+
+          always:
+            - name: Kill background web servers
+              ansible.builtin.shell: "kill $(lsof -t -i:{{ item }}) || true"
+              loop: [5000, 5003, 5005, 5006, 5010]
+              ignore_errors: true
+              changed_when: false
+      tags: [webserver]
+
+    # --- 5. Proxy Server Benchmark ---
+    - name: ProxyServerBenchmark Section
+      block:
+        - name: Ensure dependencies are installed
+          ansible.builtin.include_tasks: playbook_install_deps.yml
+          vars:
+            need_bombardier: true
+            need_dotnet: true
+
+        - name: Ensure target API JIT (port 5000) is running
+          ansible.builtin.shell: "./WebServerBenchmark/cs/bin/Release/jit/WebServerBenchmark --urls 'http://127.0.0.1:5000' --mode api &"
+          async: "{{ server_timeout }}"
+          poll: "{{ async_poll }}"
+          changed_when: false
+
+        - name: Start YARP JIT (port 5001)
+          ansible.builtin.shell: "./WebServerBenchmark/cs/bin/Release/jit/WebServerBenchmark --urls 'http://127.0.0.1:5001' --mode yarp &"
+          async: "{{ server_timeout }}"
+          poll: "{{ async_poll }}"
+          changed_when: false
+
+        - name: Start YARP AOT (port 5004)
+          ansible.builtin.shell: "./WebServerBenchmark/cs/bin/Release/aot/WebServerBenchmark --urls 'http://127.0.0.1:5004' --mode yarp &"
+          async: "{{ server_timeout }}"
+          poll: "{{ async_poll }}"
+          changed_when: false
+
+        - name: Restart Nginx service
+          ansible.builtin.service:
+            name: nginx
+            state: restarted
+          become: true
+          ignore_errors: true
+          changed_when: false
+
+        - name: Wait for proxy ports to be ready
+          ansible.builtin.wait_for:
+            port: "{{ item }}"
+            timeout: "{{ port_timeout }}"
+          loop: [5000, 5001, 5002, 5004]
+          ignore_errors: true
+
+        - name: Benchmark YARP JIT
+          ansible.builtin.shell: "./bombardier -c {{ bombardier_connections }} -d {{ bombardier_duration }} -p r -o j http://127.0.0.1:5001/ > ./results/proxy_yarp_jit.json"
+          changed_when: false
+
+        - name: Benchmark YARP AOT
+          ansible.builtin.shell: "./bombardier -c {{ bombardier_connections }} -d {{ bombardier_duration }} -p r -o j http://127.0.0.1:5004/ > ./results/proxy_yarp_aot.json"
+          changed_when: false
+
+        - name: Benchmark Nginx
+          ansible.builtin.shell: "./bombardier -c {{ bombardier_connections }} -d {{ bombardier_duration }} -p r -o j http://127.0.0.1:5002/ > ./results/proxy_nginx.json"
+          ignore_errors: true
+          changed_when: false
+
+      always:
+        - name: Kill background proxy servers
+          ansible.builtin.shell: "kill $(lsof -t -i:{{ item }}) || true"
+          loop: [5000, 5001, 5004]
+          ignore_errors: true
+          changed_when: false
+
+        - name: Stop Nginx service
+          ansible.builtin.service:
+            name: nginx
+            state: stopped
+          become: true
+          ignore_errors: true
+          changed_when: false
+      tags: [proxy]
+
+    # --- 6. Results Compilation ---
+    - name: Run result conversion script to update README.md
+      ansible.builtin.command: python3 convert_results.py
+      changed_when: false
+      tags: [always, result]
