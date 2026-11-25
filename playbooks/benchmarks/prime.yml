@@ -33,3 +33,5 @@
 
     - name: Update README.md
       ansible.builtin.include_tasks: ../tasks/update_readme.yml
+      vars:
+        readme_section: prime

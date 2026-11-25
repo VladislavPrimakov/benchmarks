@@ -8,6 +8,7 @@
 - [5. WebServerBenchmark (Raw HTTP Server)](#5-webserverbenchmark-raw-http-server)
 - [6. Proxy Server Benchmark (YARP vs Nginx)](#6-proxy-server-benchmark-yarp-vs-nginx)
 - [7. Throw vs Result Benchmark (C# NativeAOT vs Rust)](#7-throw-vs-result-benchmark-c-nativeaot-vs-rust)
+- [8. LinqBenchmark (C# LINQ vs Struct Functor vs Rust Iterator)](#8-linqbenchmark-c-linq-vs-struct-functor-vs-rust-iterator)
 
 ## Prerequisites & Running Benchmarks
 
@@ -35,6 +36,7 @@ Each benchmark has its own standalone playbook in `./playbooks/benchmarks/<name>
 - `webserver` — `WebServerBenchmark`
 - `proxy` — `ProxyServerBenchmark`
 - `throw_vs_result` — `ThrowVsResultBenchmark`
+- `linq` — `LinqBenchmark` (C# LINQ vs Struct Functor vs Rust Iterator)
 
 ```bash
 # Run a single benchmark
@@ -155,3 +157,31 @@ _Comparing Rust `Result<i32, DomainError>` / `catch_unwind` against C# 15 `[Unio
 | [`C# AsyncThrow (runtime-async)`](src/ThrowVsResultBenchmark/cs/Program.cs) | `11.0.100` | 8.643 ± 0.066 | 8.584..8.714 | 9.440 | 51.8 | 131.34B | 3.30 | 14.4M (12.5%) | 12.8M | 18.21 ± 0.14 |
 | [`C# AsyncThrow (no runtime-async)`](src/ThrowVsResultBenchmark/cs/Program.cs) | `11.0.100` | 22.745 ± 0.032 | 22.720..22.781 | 24.865 | 52.4 | 325.94B | 3.09 | 69.7M (6.3%) | 89.7M | 47.84 ± 0.07 |
 <!-- TABLE_END: throw_vs_result_async -->
+
+## 8. LinqBenchmark (C# LINQ vs Struct Functor vs Rust Iterator)
+
+_Comparing C# LINQ delegates (`JIT` with Dynamic PGO vs `NativeAOT` without PGO), C# monomorphized `struct` functors (`where TSelector : struct`), and Rust zero-cost iterators over an L2-resident array of 4,096 16-byte `Item` structs._
+
+### Sum with Selector (`200,000` passes × `4,096` items)
+
+<!-- TABLE_START: linq_sum -->
+| Variant | Version | Wall [s] | Min..Max [s] | CPU [s] | Peak RAM [MiB] | Instructions | IPC | Cache Miss | Branch Misses | Relative |
+| :------- | :------ | ----------: | ----------------: | ---------: | -------------: | -----------: | --: | ---------: | ------------: | ----------: |
+| [`Rust Iterator`](src/LinqBenchmark/rust/src/main.rs) | `1.100.0` | 0.373 ± 0.011 | 0.361..0.384 | 0.409 | 1.8 | 4.68B | 2.76 | 3.4M (1.6%) | 213.8K | 1.00 ± 0.03 |
+| [`C# StructFunctor (AOT)`](src/LinqBenchmark/cs/Program.cs) | `11.0.100` | 0.422 ± 0.006 | 0.418..0.429 | 0.457 | 3.5 | 8.20B | 4.33 | 4.0M (1.6%) | 219.6K | 1.13 ± 0.02 |
+| [`C# StructFunctor (JIT)`](src/LinqBenchmark/cs/Program.cs) | `11.0.100` | 0.691 ± 0.006 | 0.687..0.697 | 0.757 | 24.5 | 10.54B | 3.42 | 7.0M (3.1%) | 962.2K | 1.85 ± 0.01 |
+| [`C# LINQ (JIT)`](src/LinqBenchmark/cs/Program.cs) | `11.0.100` | 0.840 ± 0.011 | 0.833..0.852 | 0.925 | 25.6 | 17.28B | 4.50 | 7.6M (3.4%) | 6.2M | 2.25 ± 0.03 |
+| [`C# LINQ (AOT)`](src/LinqBenchmark/cs/Program.cs) | `11.0.100` | 4.243 ± 0.044 | 4.218..4.294 | 4.703 | 9.6 | 50.82B | 2.55 | 5.6M (2.5%) | 443.3K | 11.38 ± 0.12 |
+<!-- TABLE_END: linq_sum -->
+
+### Pipeline: `Where().Select().Sum()` (`100,000` passes × `4,096` items)
+
+<!-- TABLE_START: linq_pipeline -->
+| Variant | Version | Wall [s] | Min..Max [s] | CPU [s] | Peak RAM [MiB] | Instructions | IPC | Cache Miss | Branch Misses | Relative |
+| :------- | :------ | ----------: | ----------------: | ---------: | -------------: | -----------: | --: | ---------: | ------------: | ----------: |
+| [`Rust Iterator`](src/LinqBenchmark/rust/src/main.rs) | `1.100.0` | 0.210 ± 0.001 | 0.210..0.211 | 0.229 | 1.8 | 2.96B | 3.03 | 1.6M (1.5%) | 75.7K | 1.00 ± 0.00 |
+| [`C# StructFunctor (AOT)`](src/LinqBenchmark/cs/Program.cs) | `11.0.100` | 0.318 ± 0.004 | 0.314..0.323 | 0.339 | 3.5 | 3.70B | 2.57 | 2.6M (2.4%) | 59.6K | 1.51 ± 0.02 |
+| [`C# StructFunctor (JIT)`](src/LinqBenchmark/cs/Program.cs) | `11.0.100` | 0.494 ± 0.004 | 0.490..0.498 | 0.539 | 24.5 | 6.11B | 2.74 | 5.1M (4.4%) | 1.4M | 2.35 ± 0.02 |
+| [`C# LINQ (JIT)`](src/LinqBenchmark/cs/Program.cs) | `11.0.100` | 0.838 ± 0.007 | 0.830..0.843 | 0.931 | 37.8 | 14.35B | 3.77 | 6.7M (5.5%) | 8.3M | 3.98 ± 0.03 |
+| [`C# LINQ (AOT)`](src/LinqBenchmark/cs/Program.cs) | `11.0.100` | 5.099 ± 0.006 | 5.094..5.106 | 5.654 | 17.9 | 44.72B | 1.86 | 6.1M (4.9%) | 101.2M | 24.22 ± 0.03 |
+<!-- TABLE_END: linq_pipeline -->

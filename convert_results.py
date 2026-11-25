@@ -1,7 +1,19 @@
+import argparse
 import json
 import os
 import re
 import subprocess
+
+SECTIONS = (
+    'prime',
+    'partitioner',
+    'regex',
+    'string',
+    'webserver',
+    'proxy',
+    'throw_vs_result',
+    'linq',
+)
 
 
 def get_cli_version(cmd, pattern=r"(\d+\.\d+\.\d+)"):
@@ -216,7 +228,8 @@ def update_hyperfine_table(content, tag, json_path, versions, first_col='Languag
     return replace_table(content, tag, header, rows)
 
 
-def update_readme():
+def update_readme(only=None):
+    selected = set(only) if only else set(SECTIONS)
     versions = get_versions()
     results_dir = os.environ.get("BENCH_RESULTS_DIR", os.path.expanduser("~/.bench-tools/results"))
     res = lambda name: os.path.join(results_dir, name)
@@ -225,90 +238,122 @@ def update_readme():
         content = f.read()
 
     # Hyperfine v2 benchmarks
-    content = update_hyperfine_table(
-        content, 'prime', res('prime.json'), versions, 'Language', 'ms',
-        sources={
-            'C# (JIT)': 'src/CountPrimeBenchmark/cs/Program.cs',
-            'C# (AOT)': 'src/CountPrimeBenchmark/cs/Program.cs',
-            'Rust': 'src/CountPrimeBenchmark/rust/src/main.rs',
+    if 'prime' in selected:
+        content = update_hyperfine_table(
+            content, 'prime', res('prime.json'), versions, 'Language', 'ms',
+            sources={
+                'C# (JIT)': 'src/CountPrimeBenchmark/cs/Program.cs',
+                'C# (AOT)': 'src/CountPrimeBenchmark/cs/Program.cs',
+                'Rust': 'src/CountPrimeBenchmark/rust/src/main.rs',
+            }
+        )
+    if 'partitioner' in selected:
+        content = update_hyperfine_table(
+            content, 'partitioner', res('partitioner.json'), versions, 'Language', 'ms',
+            sources={
+                'C++ (g++)': 'src/PartitionerBenchmark/cpp/PartitionerBenchmark.cpp',
+                'C# (JIT)': 'src/PartitionerBenchmark/cs/Program.cs',
+                'C# (AOT)': 'src/PartitionerBenchmark/cs/Program.cs',
+                'Rust': 'src/PartitionerBenchmark/rust/src/main.rs',
+            }
+        )
+    if 'regex' in selected:
+        content = update_hyperfine_table(
+            content, 'regex', res('regex.json'), versions, 'Language', 's',
+            sources={
+                'C': 'src/RegexBenchmark/c/RegexBenchmark.c',
+                'C# (JIT)': 'src/RegexBenchmark/cs/Program.cs',
+                'C# (AOT)': 'src/RegexBenchmark/cs/Program.cs',
+                'Python': 'src/RegexBenchmark/py/RegexBenchmark.py',
+                'Rust': 'src/RegexBenchmark/rust/src/main.rs',
+            }
+        )
+    if 'string' in selected:
+        content = update_hyperfine_table(
+            content, 'string', res('string_concat.json'), versions, 'Language', 's',
+            sources={
+                'C': 'src/StringConcatBenchmark/c/StringConcatBenchmark.c',
+                'C# (JIT)': 'src/StringConcatBenchmark/cs/Program.cs',
+                'C# (AOT)': 'src/StringConcatBenchmark/cs/Program.cs',
+            }
+        )
+    if 'throw_vs_result' in selected:
+        throw_sources = {
+            'Rust Result': 'src/ThrowVsResultBenchmark/rust/src/main.rs',
+            'Rust AsyncResult': 'src/ThrowVsResultBenchmark/rust/src/main.rs',
+            'Rust Panic (catch_unwind)': 'src/ThrowVsResultBenchmark/rust/src/main.rs',
+            'C# TryOut': 'src/ThrowVsResultBenchmark/cs/Program.cs',
+            'C# Result': 'src/ThrowVsResultBenchmark/cs/Program.cs',
+            'C# AsyncResult (runtime-async)': 'src/ThrowVsResultBenchmark/cs/Program.cs',
+            'C# AsyncResult (no runtime-async)': 'src/ThrowVsResultBenchmark/cs/Program.cs',
+            'C# Throw': 'src/ThrowVsResultBenchmark/cs/Program.cs',
+            'C# AsyncThrow (runtime-async)': 'src/ThrowVsResultBenchmark/cs/Program.cs',
+            'C# AsyncThrow (no runtime-async)': 'src/ThrowVsResultBenchmark/cs/Program.cs',
         }
-    )
-    content = update_hyperfine_table(
-        content, 'partitioner', res('partitioner.json'), versions, 'Language', 'ms',
-        sources={
-            'C++ (g++)': 'src/PartitionerBenchmark/cpp/PartitionerBenchmark.cpp',
-            'C# (JIT)': 'src/PartitionerBenchmark/cs/Program.cs',
-            'C# (AOT)': 'src/PartitionerBenchmark/cs/Program.cs',
-            'Rust': 'src/PartitionerBenchmark/rust/src/main.rs',
+        content = update_hyperfine_table(
+            content, 'throw_vs_result_sync', res('throw_vs_result.json'), versions,
+            'Variant', 's', command_filter=lambda c: 'Async' not in c, sources=throw_sources
+        )
+        content = update_hyperfine_table(
+            content, 'throw_vs_result_async', res('throw_vs_result.json'), versions,
+            'Variant', 's', command_filter=lambda c: 'Async' in c, sources=throw_sources
+        )
+    if 'linq' in selected:
+        linq_sources = {
+            'Rust Iterator': 'src/LinqBenchmark/rust/src/main.rs',
+            'C# StructFunctor (JIT)': 'src/LinqBenchmark/cs/Program.cs',
+            'C# StructFunctor (AOT)': 'src/LinqBenchmark/cs/Program.cs',
+            'C# LINQ (JIT)': 'src/LinqBenchmark/cs/Program.cs',
+            'C# LINQ (AOT)': 'src/LinqBenchmark/cs/Program.cs',
         }
-    )
-    content = update_hyperfine_table(
-        content, 'regex', res('regex.json'), versions, 'Language', 's',
-        sources={
-            'C': 'src/RegexBenchmark/c/RegexBenchmark.c',
-            'C# (JIT)': 'src/RegexBenchmark/cs/Program.cs',
-            'C# (AOT)': 'src/RegexBenchmark/cs/Program.cs',
-            'Python': 'src/RegexBenchmark/py/RegexBenchmark.py',
-            'Rust': 'src/RegexBenchmark/rust/src/main.rs',
-        }
-    )
-    content = update_hyperfine_table(
-        content, 'string', res('string_concat.json'), versions, 'Language', 's',
-        sources={
-            'C': 'src/StringConcatBenchmark/c/StringConcatBenchmark.c',
-            'C# (JIT)': 'src/StringConcatBenchmark/cs/Program.cs',
-            'C# (AOT)': 'src/StringConcatBenchmark/cs/Program.cs',
-        }
-    )
-    throw_sources = {
-        'Rust Result': 'src/ThrowVsResultBenchmark/rust/src/main.rs',
-        'Rust AsyncResult': 'src/ThrowVsResultBenchmark/rust/src/main.rs',
-        'Rust Panic (catch_unwind)': 'src/ThrowVsResultBenchmark/rust/src/main.rs',
-        'C# TryOut': 'src/ThrowVsResultBenchmark/cs/Program.cs',
-        'C# Result': 'src/ThrowVsResultBenchmark/cs/Program.cs',
-        'C# AsyncResult (runtime-async)': 'src/ThrowVsResultBenchmark/cs/Program.cs',
-        'C# AsyncResult (no runtime-async)': 'src/ThrowVsResultBenchmark/cs/Program.cs',
-        'C# Throw': 'src/ThrowVsResultBenchmark/cs/Program.cs',
-        'C# AsyncThrow (runtime-async)': 'src/ThrowVsResultBenchmark/cs/Program.cs',
-        'C# AsyncThrow (no runtime-async)': 'src/ThrowVsResultBenchmark/cs/Program.cs',
-    }
-    content = update_hyperfine_table(
-        content, 'throw_vs_result_sync', res('throw_vs_result.json'), versions,
-        'Variant', 's', command_filter=lambda c: 'Async' not in c, sources=throw_sources
-    )
-    content = update_hyperfine_table(
-        content, 'throw_vs_result_async', res('throw_vs_result.json'), versions,
-        'Variant', 's', command_filter=lambda c: 'Async' in c, sources=throw_sources
-    )
+        content = update_hyperfine_table(
+            content, 'linq_sum', res('linq_sum.json'), versions,
+            'Variant', 's', sources=linq_sources
+        )
+        content = update_hyperfine_table(
+            content, 'linq_pipeline', res('linq_pipeline.json'), versions,
+            'Variant', 's', sources=linq_sources
+        )
 
     # WebServer
-    header_web = [
-        "| Server | Version | Reqs/sec (Avg ± Stdev) | Relative RPS | Latency (Avg ± Stdev) | Relative Latency | Throughput | Relative Throughput |",
-        "|:---|:---|---:|---:|---:|---:|---:|---:|"
-    ]
-    content = replace_table(content, 'webserver', header_web, parse_bombardier({
-        'Zerg (JIT)': (res('webserver_zerg_jit.json'), 'src/WebServerBenchmark/csZerg/Program.cs'),
-        'Zerg (AOT)': (res('webserver_zerg_aot.json'), 'src/WebServerBenchmark/csZerg/Program.cs'),
-        'Actix-web (Rust)': (res('webserver_actix.json'), 'src/WebServerBenchmark/rust_actix/src/main.rs'),
-        'Kestrel (JIT)': (res('webserver_kestrel_jit.json'), 'src/WebServerBenchmark/cs/Program.cs'),
-        'Kestrel (AOT)': (res('webserver_kestrel_aot.json'), 'src/WebServerBenchmark/cs/Program.cs'),
-    }, versions, sort_by='rps'))
+    if 'webserver' in selected:
+        header_web = [
+            "| Server | Version | Reqs/sec (Avg ± Stdev) | Relative RPS | Latency (Avg ± Stdev) | Relative Latency | Throughput | Relative Throughput |",
+            "|:---|:---|---:|---:|---:|---:|---:|---:|"
+        ]
+        content = replace_table(content, 'webserver', header_web, parse_bombardier({
+            'Zerg (JIT)': (res('webserver_zerg_jit.json'), 'src/WebServerBenchmark/csZerg/Program.cs'),
+            'Zerg (AOT)': (res('webserver_zerg_aot.json'), 'src/WebServerBenchmark/csZerg/Program.cs'),
+            'Actix-web (Rust)': (res('webserver_actix.json'), 'src/WebServerBenchmark/rust_actix/src/main.rs'),
+            'Kestrel (JIT)': (res('webserver_kestrel_jit.json'), 'src/WebServerBenchmark/cs/Program.cs'),
+            'Kestrel (AOT)': (res('webserver_kestrel_aot.json'), 'src/WebServerBenchmark/cs/Program.cs'),
+        }, versions, sort_by='rps'))
 
     # Proxy
-    header_proxy = [
-        "| Proxy | Version | Reqs/sec (Avg ± Stdev) | Relative RPS | Latency (Avg ± Stdev) | Relative Latency | Throughput | Relative Throughput |",
-        "|:---|:---|---:|---:|---:|---:|---:|---:|"
-    ]
-    content = replace_table(content, 'proxy', header_proxy, parse_bombardier({
-        'Nginx': (res('proxy_nginx.json'), 'src/WebServerBenchmark/nginx/nginx.conf'),
-        'YARP (JIT)': (res('proxy_yarp_jit.json'), 'src/WebServerBenchmark/cs/Program.cs'),
-        'YARP (AOT)': (res('proxy_yarp_aot.json'), 'src/WebServerBenchmark/cs/Program.cs'),
-    }, versions, sort_by='rps'))
+    if 'proxy' in selected:
+        header_proxy = [
+            "| Proxy | Version | Reqs/sec (Avg ± Stdev) | Relative RPS | Latency (Avg ± Stdev) | Relative Latency | Throughput | Relative Throughput |",
+            "|:---|:---|---:|---:|---:|---:|---:|---:|"
+        ]
+        content = replace_table(content, 'proxy', header_proxy, parse_bombardier({
+            'Nginx': (res('proxy_nginx.json'), 'src/WebServerBenchmark/nginx/nginx.conf'),
+            'YARP (JIT)': (res('proxy_yarp_jit.json'), 'src/WebServerBenchmark/cs/Program.cs'),
+            'YARP (AOT)': (res('proxy_yarp_aot.json'), 'src/WebServerBenchmark/cs/Program.cs'),
+        }, versions, sort_by='rps'))
 
-    with open('README.md', 'w', encoding='utf-8') as f:
+    with open('README.md', 'w', encoding='utf-8', newline='\n') as f:
         f.write(content)
 
 
 if __name__ == "__main__":
-    update_readme()
-    print("README.md updated via anchors.")
+    parser = argparse.ArgumentParser(description="Update README.md benchmark tables from JSON results.")
+    parser.add_argument(
+        "--only",
+        nargs="+",
+        choices=SECTIONS,
+        help="Update only the specified benchmark section(s) instead of all tables.",
+    )
+    args = parser.parse_args()
+    update_readme(only=args.only)
+    scope = ", ".join(args.only) if args.only else "all"
+    print(f"README.md updated via anchors ({scope}).")

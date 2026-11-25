@@ -1,0 +1,52 @@
+---
+- name: Run LinqBenchmark
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  vars_files: [../vars/common.yml]
+  environment: "{{ bench_env }}"
+
+  tasks:
+    - name: Setup environment and dependencies
+      ansible.builtin.include_tasks: ../tasks/setup.yml
+      vars:
+        deps: [hyperfine, dotnet, cargo]
+
+    - name: Compile LinqBenchmark
+      ansible.builtin.include_tasks: ../tasks/compile.yml
+      vars:
+        dotnet_projects:
+          - src/LinqBenchmark/cs/LinqBenchmark.csproj
+        rust_manifests:
+          - src/LinqBenchmark/rust/Cargo.toml
+
+    - name: Run hyperfine for LinqBenchmark (Sum with Selector)
+      ansible.builtin.command:
+        cmd: >
+          hyperfine --warmup 1 -r 3
+          -n "Rust Iterator" "./src/LinqBenchmark/rust/target/release/linq_benchmark sum 200000"
+          -n "C# StructFunctor (JIT)" "./src/LinqBenchmark/cs/bin/Release/jit/LinqBenchmark functor-sum 200000"
+          -n "C# StructFunctor (AOT)" "./src/LinqBenchmark/cs/bin/Release/aot/LinqBenchmark functor-sum 200000"
+          -n "C# LINQ (JIT)" "./src/LinqBenchmark/cs/bin/Release/jit/LinqBenchmark linq-sum 200000"
+          -n "C# LINQ (AOT)" "./src/LinqBenchmark/cs/bin/Release/aot/LinqBenchmark linq-sum 200000"
+          --export-json "{{ results_dir }}/linq_sum.json"
+        chdir: "{{ root_dir }}"
+      changed_when: false
+
+    - name: Run hyperfine for LinqBenchmark (Pipeline)
+      ansible.builtin.command:
+        cmd: >
+          hyperfine --warmup 1 -r 3
+          -n "Rust Iterator" "./src/LinqBenchmark/rust/target/release/linq_benchmark pipeline 100000"
+          -n "C# StructFunctor (JIT)" "./src/LinqBenchmark/cs/bin/Release/jit/LinqBenchmark functor-pipeline 100000"
+          -n "C# StructFunctor (AOT)" "./src/LinqBenchmark/cs/bin/Release/aot/LinqBenchmark functor-pipeline 100000"
+          -n "C# LINQ (JIT)" "./src/LinqBenchmark/cs/bin/Release/jit/LinqBenchmark linq-pipeline 100000"
+          -n "C# LINQ (AOT)" "./src/LinqBenchmark/cs/bin/Release/aot/LinqBenchmark linq-pipeline 100000"
+          --export-json "{{ results_dir }}/linq_pipeline.json"
+        chdir: "{{ root_dir }}"
+      changed_when: false
+
+    - name: Update README.md
+      ansible.builtin.include_tasks: ../tasks/update_readme.yml
+      vars:
+        readme_section: linq

@@ -20,5 +20,5 @@
 - name: Import ThrowVsResultBenchmark
   ansible.builtin.import_playbook: benchmarks/throw_vs_result.yml
 
-- name: Import Results Compilation
-  ansible.builtin.import_playbook: results.yml
+- name: Import LinqBenchmark
+  ansible.builtin.import_playbook: benchmarks/linq.yml

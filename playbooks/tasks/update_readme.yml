@@ -1,6 +1,6 @@
 ---
 - name: Update README.md from benchmark results
   ansible.builtin.command:
-    cmd: python3 convert_results.py
+    cmd: "python3 convert_results.py{{ (' --only ' ~ readme_section) if (readme_section is defined and readme_section) else '' }}"
     chdir: "{{ root_dir }}"
   changed_when: false
