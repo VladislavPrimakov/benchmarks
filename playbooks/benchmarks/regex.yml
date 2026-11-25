@@ -1,0 +1,41 @@
+---
+- name: Run RegexBenchmark
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  vars_files: [../vars/common.yml]
+  environment: "{{ bench_env }}"
+
+  tasks:
+    - name: Setup environment and dependencies
+      ansible.builtin.include_tasks: ../tasks/setup.yml
+      vars:
+        deps: [hyperfine, dotnet, cargo, python, gcc]
+
+    - name: Compile RegexBenchmark
+      ansible.builtin.include_tasks: ../tasks/compile.yml
+      vars:
+        dotnet_projects:
+          - src/RegexBenchmark/cs/RegexBenchmark.csproj
+        rust_manifests:
+          - src/RegexBenchmark/rust/Cargo.toml
+        c_sources:
+          - src: src/RegexBenchmark/c/RegexBenchmark.c
+            out: src/RegexBenchmark/c/regex_benchmark_c
+            flags: -lpcre2-8
+
+    - name: Run hyperfine for RegexBenchmark
+      ansible.builtin.command:
+        cmd: >
+          hyperfine
+          -n "C" "./src/RegexBenchmark/c/regex_benchmark_c"
+          -n "C# (JIT)" "./src/RegexBenchmark/cs/bin/Release/jit/RegexBenchmark"
+          -n "C# (AOT)" "./src/RegexBenchmark/cs/bin/Release/aot/RegexBenchmark"
+          -n "Python" "python3 ./src/RegexBenchmark/py/RegexBenchmark.py"
+          -n "Rust" "./src/RegexBenchmark/rust/target/release/regex_benchmark"
+          --export-json "{{ results_dir }}/regex.json"
+        chdir: "{{ root_dir }}"
+      changed_when: false
+
+    - name: Update README.md
+      ansible.builtin.include_tasks: ../tasks/update_readme.yml

@@ -1,0 +1,36 @@
+---
+- name: Update All Benchmark Dependencies
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  vars_files: [vars/common.yml]
+  environment: "{{ bench_env }}"
+
+  vars_prompt:
+    - name: ansible_become_password
+      prompt: "Sudo password (required for apt system compilers and libraries)"
+      private: true
+
+  tasks:
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: true
+      become: true
+      ignore_errors: true
+
+    - name: Upgrade system compilers and libraries
+      ansible.builtin.apt:
+        name:
+          - python3
+          - gcc
+          - g++
+          - make
+          - libpcre2-dev
+          - clang
+          - zlib1g-dev
+        state: latest
+      become: true
+
+    - name: Install or update isolated benchmark tools in ~/.bench-tools
+      ansible.builtin.include_tasks: "deps/{{ item }}.yml"
+      loop: [hyperfine, bombardier, dotnet, cargo, nginx]

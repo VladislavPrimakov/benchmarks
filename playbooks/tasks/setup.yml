@@ -1,0 +1,10 @@
+---
+- name: Ensure results directory exists
+  ansible.builtin.file:
+    path: "{{ results_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Ensure required dependencies are installed
+  ansible.builtin.include_tasks: "../deps/{{ item }}.yml"
+  loop: "{{ deps | default([]) }}"

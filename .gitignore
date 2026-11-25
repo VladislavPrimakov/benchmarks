@@ -12,13 +12,15 @@ target/
 Cargo.lock
 **/*.d
 
-# C binaries
+# C/C++ binaries
 *.o
 *.out
 *_c
+*_cpp
 RegexBenchmark.bin
-RegexBenchmarks/c/regex_benchmark_c
-StringConcatBenchmark/c/StringConcatBenchmark_c
+
+# Python
+__pycache__/
 
 # macOS / Windows
 .DS_Store

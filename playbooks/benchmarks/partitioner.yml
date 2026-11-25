@@ -1,0 +1,40 @@
+---
+- name: Run PartitionerBenchmark
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  vars_files: [../vars/common.yml]
+  environment: "{{ bench_env }}"
+
+  tasks:
+    - name: Setup environment and dependencies
+      ansible.builtin.include_tasks: ../tasks/setup.yml
+      vars:
+        deps: [hyperfine, dotnet, cargo, gpp]
+
+    - name: Compile PartitionerBenchmark
+      ansible.builtin.include_tasks: ../tasks/compile.yml
+      vars:
+        dotnet_projects:
+          - src/PartitionerBenchmark/cs/PartitionerBenchmark.csproj
+        rust_manifests:
+          - src/PartitionerBenchmark/rust/Cargo.toml
+        cpp_sources:
+          - src: src/PartitionerBenchmark/cpp/PartitionerBenchmark.cpp
+            out: src/PartitionerBenchmark/cpp/partitioner_benchmark_cpp
+            flags: -fno-math-errno -fopenmp
+
+    - name: Run hyperfine for PartitionerBenchmark
+      ansible.builtin.command:
+        cmd: >
+          hyperfine --warmup 3
+          -n "C++ (g++)" "./src/PartitionerBenchmark/cpp/partitioner_benchmark_cpp"
+          -n "C# (JIT)" "./src/PartitionerBenchmark/cs/bin/Release/jit/PartitionerBenchmark"
+          -n "C# (AOT)" "./src/PartitionerBenchmark/cs/bin/Release/aot/PartitionerBenchmark"
+          -n "Rust" "./src/PartitionerBenchmark/rust/target/release/partitioner_benchmark"
+          --export-json "{{ results_dir }}/partitioner.json"
+        chdir: "{{ root_dir }}"
+      changed_when: false
+
+    - name: Update README.md
+      ansible.builtin.include_tasks: ../tasks/update_readme.yml

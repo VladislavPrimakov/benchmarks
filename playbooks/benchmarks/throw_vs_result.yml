@@ -1,0 +1,57 @@
+---
+- name: Run ThrowVsResultBenchmark
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  vars_files: [../vars/common.yml]
+  environment: "{{ bench_env }}"
+
+  tasks:
+    - name: Setup environment and dependencies
+      ansible.builtin.include_tasks: ../tasks/setup.yml
+      vars:
+        deps: [hyperfine, dotnet, cargo]
+
+    - name: Compile ThrowVsResultBenchmark
+      ansible.builtin.include_tasks: ../tasks/compile.yml
+      vars:
+        dotnet_projects:
+          - src/ThrowVsResultBenchmark/cs/ThrowVsResultBenchmark.csproj
+        rust_manifests:
+          - src/ThrowVsResultBenchmark/rust/Cargo.toml
+
+    - name: Compile ThrowVsResultBenchmark (AOT without runtime-async)
+      ansible.builtin.command:
+        cmd: >-
+          dotnet publish -c Release -r linux-x64
+          -o src/ThrowVsResultBenchmark/cs/bin/Release/aot-no-runtime-async
+          /p:IntermediateOutputPath=obj/Release/net{{ dotnet_version }}/linux-x64-no-runtime-async/
+          /p:PublishAot=true
+          /p:IlcInstructionSet=native
+          /p:OptimizationPreference=Speed
+          /p:TargetFramework=net{{ dotnet_version }}
+          /p:EnableRuntimeAsync=false
+          src/ThrowVsResultBenchmark/cs/ThrowVsResultBenchmark.csproj
+        chdir: "{{ root_dir }}"
+      changed_when: false
+
+    - name: Run hyperfine for ThrowVsResultBenchmark
+      ansible.builtin.command:
+        cmd: >
+          hyperfine -r 3
+          -n "Rust Result" "./src/ThrowVsResultBenchmark/rust/target/release/throw_vs_result_benchmark result 10 300000000"
+          -n "C# TryOut" "./src/ThrowVsResultBenchmark/cs/bin/Release/aot/ThrowVsResultBenchmark tryout 10 300000000"
+          -n "C# Result" "./src/ThrowVsResultBenchmark/cs/bin/Release/aot/ThrowVsResultBenchmark result 10 300000000"
+          -n "C# Throw" "./src/ThrowVsResultBenchmark/cs/bin/Release/aot/ThrowVsResultBenchmark throw 10 300000000"
+          -n "Rust Panic (catch_unwind)" "./src/ThrowVsResultBenchmark/rust/target/release/throw_vs_result_benchmark panic 10 300000000"
+          -n "Rust AsyncResult" "./src/ThrowVsResultBenchmark/rust/target/release/throw_vs_result_benchmark async-result 10 80000000"
+          -n "C# AsyncResult (runtime-async)" "./src/ThrowVsResultBenchmark/cs/bin/Release/aot/ThrowVsResultBenchmark async-result 10 80000000"
+          -n "C# AsyncResult (no runtime-async)" "./src/ThrowVsResultBenchmark/cs/bin/Release/aot-no-runtime-async/ThrowVsResultBenchmark async-result 10 80000000"
+          -n "C# AsyncThrow (runtime-async)" "./src/ThrowVsResultBenchmark/cs/bin/Release/aot/ThrowVsResultBenchmark async-throw 10 80000000"
+          -n "C# AsyncThrow (no runtime-async)" "./src/ThrowVsResultBenchmark/cs/bin/Release/aot-no-runtime-async/ThrowVsResultBenchmark async-throw 10 80000000"
+          --export-json "{{ results_dir }}/throw_vs_result.json"
+        chdir: "{{ root_dir }}"
+      changed_when: false
+
+    - name: Update README.md
+      ansible.builtin.include_tasks: ../tasks/update_readme.yml

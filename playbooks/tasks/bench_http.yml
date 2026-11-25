@@ -1,0 +1,48 @@
+---
+- name: "Benchmark {{ target.name }}"
+  block:
+    - name: "Start {{ target.name }}"
+      ansible.builtin.shell:
+        cmd: "{{ target.start_cmd }}"
+        chdir: "{{ root_dir }}"
+      register: _target_start
+      changed_when: false
+
+    - name: "Wait for {{ target.name }} on port {{ target.port }}"
+      ansible.builtin.wait_for:
+        host: 127.0.0.1
+        port: "{{ target.port }}"
+        timeout: "{{ port_timeout }}"
+
+    - name: "Run bombardier against {{ target.name }}"
+      ansible.builtin.shell:
+        cmd: "bombardier -c {{ bombardier_connections }} -d {{ bombardier_duration }} -p r -o j http://127.0.0.1:{{ target.port }}/ > {{ results_dir }}/{{ target.out }}"
+        chdir: "{{ root_dir }}"
+      changed_when: false
+
+  always:
+    - name: "Stop {{ target.name }}"
+      ansible.builtin.shell:
+        cmd: >-
+          {% if target.stop_cmd is defined %}
+          {{ target.stop_cmd }} || true
+          {% else %}
+          kill -TERM {{ _target_start.stdout | trim }} 2>/dev/null || true
+          {% endif %}
+        chdir: "{{ root_dir }}"
+      when: target.stop_cmd is defined or (_target_start.stdout | default('') | trim) != ''
+      ignore_errors: true
+      changed_when: false
+
+    - name: "Wait for port {{ target.port }} to be released"
+      ansible.builtin.wait_for:
+        host: 127.0.0.1
+        port: "{{ target.port }}"
+        state: stopped
+        timeout: "{{ port_timeout }}"
+      ignore_errors: true
+
+    - name: "Force kill any lingering process on port {{ target.port }}"
+      ansible.builtin.shell: "fuser -k {{ target.port }}/tcp 2>/dev/null || kill -9 $(lsof -t -i:{{ target.port }}) 2>/dev/null || true"
+      ignore_errors: true
+      changed_when: false

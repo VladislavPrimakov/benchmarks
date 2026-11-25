@@ -1,0 +1,16 @@
+---
+- name: Check if isolated Rust (cargo) is installed
+  ansible.builtin.command: "{{ cargo_home }}/bin/cargo --version"
+  register: _cargo_installed
+  ignore_errors: true
+  changed_when: false
+
+- name: Install Rust via rustup into ~/.bench-tools
+  ansible.builtin.shell: "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --no-modify-path"
+  when: _cargo_installed.failed
+
+- name: Update Rust toolchain to latest stable
+  ansible.builtin.command: "{{ cargo_home }}/bin/rustup update stable"
+  when: not _cargo_installed.failed
+  ignore_errors: true
+  changed_when: false

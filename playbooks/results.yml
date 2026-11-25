@@ -1,0 +1,11 @@
+---
+- name: Update README.md from benchmark results
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files: [vars/common.yml]
+  environment: "{{ bench_env }}"
+
+  tasks:
+    - name: Update README.md
+      ansible.builtin.include_tasks: tasks/update_readme.yml

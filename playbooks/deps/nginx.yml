@@ -1,0 +1,72 @@
+---
+- name: Ensure nginx directory exists
+  ansible.builtin.file:
+    path: "{{ nginx_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Check installed isolated nginx version
+  ansible.builtin.command: "{{ nginx_dir }}/sbin/nginx -v"
+  register: _nginx_installed
+  ignore_errors: true
+  changed_when: false
+
+- name: Fetch nginx download page
+  ansible.builtin.uri:
+    url: "https://nginx.org/en/download.html"
+    return_content: true
+  register: _nginx_page
+  ignore_errors: true
+
+- name: Determine target nginx stable version
+  ansible.builtin.set_fact:
+    _nginx_target_version: >-
+      {{
+        ((_nginx_page.content | default(''))
+          | regex_search('(?s)Stable version.*?/download/nginx-([0-9]+\.[0-9]+\.[0-9]+)\.tar\.gz', '\1')
+          | default(['1.30.8'], true))
+        | first
+      }}
+
+- name: Build and install isolated nginx in ~/.bench-tools/nginx
+  when: >-
+    _nginx_installed.failed
+    or ('nginx/' ~ _nginx_target_version) not in (_nginx_installed.stderr | default(''))
+  block:
+    - name: Check if gcc is available for nginx build
+      ansible.builtin.command: gcc --version
+      register: _nginx_gcc_check
+      ignore_errors: true
+      changed_when: false
+
+    - name: Check if make is available for nginx build
+      ansible.builtin.command: make --version
+      register: _nginx_make_check
+      ignore_errors: true
+      changed_when: false
+
+    - name: Install gcc and make if missing
+      ansible.builtin.apt:
+        name:
+          - gcc
+          - make
+        state: present
+      become: true
+      when: _nginx_gcc_check.failed or _nginx_make_check.failed
+
+    - name: Download, compile and install nginx {{ _nginx_target_version }} into {{ nginx_dir }}
+      ansible.builtin.shell: |
+        set -euo pipefail
+        tmpdir="$(mktemp -d)"
+        trap 'rm -rf "$tmpdir"' EXIT
+        curl -sSL "https://nginx.org/download/nginx-{{ _nginx_target_version }}.tar.gz" | tar -xz -C "$tmpdir"
+        cd "$tmpdir/nginx-{{ _nginx_target_version }}"
+        ./configure \
+          --prefix="{{ nginx_dir }}" \
+          --without-http_rewrite_module \
+          --without-http_gzip_module \
+          --with-cc-opt="-O3 -march=native"
+        make -j"$(nproc)"
+        make install
+      args:
+        executable: /bin/bash

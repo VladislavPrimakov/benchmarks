@@ -1,0 +1,52 @@
+---
+- name: Run WebServerBenchmark
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  vars_files: [../vars/common.yml]
+  environment: "{{ bench_env }}"
+
+  tasks:
+    - name: Setup environment and dependencies
+      ansible.builtin.include_tasks: ../tasks/setup.yml
+      vars:
+        deps: [bombardier, dotnet, cargo]
+
+    - name: Compile WebServerBenchmark
+      ansible.builtin.include_tasks: ../tasks/compile.yml
+      vars:
+        dotnet_projects:
+          - src/WebServerBenchmark/cs/WebServerBenchmark.csproj
+          - src/WebServerBenchmark/csZerg/ZergBenchmark.csproj
+        rust_manifests:
+          - src/WebServerBenchmark/rust_actix/Cargo.toml
+
+    - name: Benchmark web servers sequentially
+      ansible.builtin.include_tasks: ../tasks/bench_http.yml
+      loop:
+        - name: "Kestrel (JIT)"
+          start_cmd: "nohup ./src/WebServerBenchmark/cs/bin/Release/jit/WebServerBenchmark --urls 'http://127.0.0.1:5000' --mode api </dev/null >/dev/null 2>&1 & echo $!"
+          port: 5000
+          out: webserver_kestrel_jit.json
+        - name: "Kestrel (AOT)"
+          start_cmd: "nohup ./src/WebServerBenchmark/cs/bin/Release/aot/WebServerBenchmark --urls 'http://127.0.0.1:5003' --mode api </dev/null >/dev/null 2>&1 & echo $!"
+          port: 5003
+          out: webserver_kestrel_aot.json
+        - name: "Zerg (JIT)"
+          start_cmd: "nohup ./src/WebServerBenchmark/csZerg/bin/Release/jit/ZergBenchmark 5005 </dev/null >/dev/null 2>&1 & echo $!"
+          port: 5005
+          out: webserver_zerg_jit.json
+        - name: "Zerg (AOT)"
+          start_cmd: "nohup ./src/WebServerBenchmark/csZerg/bin/Release/aot/ZergBenchmark 5006 </dev/null >/dev/null 2>&1 & echo $!"
+          port: 5006
+          out: webserver_zerg_aot.json
+        - name: "Actix-web (Rust)"
+          start_cmd: "nohup ./src/WebServerBenchmark/rust_actix/target/release/actix_benchmark </dev/null >/dev/null 2>&1 & echo $!"
+          port: 5010
+          out: webserver_actix.json
+      loop_control:
+        loop_var: target
+        label: "{{ target.name }}"
+
+    - name: Update README.md
+      ansible.builtin.include_tasks: ../tasks/update_readme.yml

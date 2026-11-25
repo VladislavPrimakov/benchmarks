@@ -1,0 +1,37 @@
+---
+- name: Ensure tools directory exists
+  ansible.builtin.file:
+    path: "{{ tools_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Check installed bombardier version
+  ansible.builtin.command: "{{ tools_dir }}/bombardier --version"
+  register: _bombardier_installed
+  ignore_errors: true
+  changed_when: false
+
+- name: Fetch latest bombardier release metadata
+  ansible.builtin.uri:
+    url: "https://api.github.com/repos/codesenberg/bombardier/releases/latest"
+    return_content: true
+  register: _bombardier_release
+  ignore_errors: true
+
+- name: Install or update bombardier in ~/.bench-tools
+  ansible.builtin.get_url:
+    url: >-
+      {{
+        (_bombardier_release.json.assets | default([])
+          | selectattr('name', 'equalto', 'bombardier-linux-amd64')
+          | map(attribute='browser_download_url')
+          | first)
+        | default('https://github.com/codesenberg/bombardier/releases/download/v1.2.6/bombardier-linux-amd64')
+      }}
+    dest: "{{ tools_dir }}/bombardier"
+    mode: "0755"
+    force: true
+  when: >-
+    _bombardier_installed.failed
+    or (_bombardier_release is succeeded
+        and (_bombardier_release.json.tag_name | regex_replace('^v', '')) not in (_bombardier_installed.stdout | default('')))

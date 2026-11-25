@@ -1,0 +1,40 @@
+---
+- name: Ensure dotnet directory exists
+  ansible.builtin.file:
+    path: "{{ dotnet_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Check installed .NET SDK version
+  ansible.builtin.command: "{{ dotnet_dir }}/dotnet --version"
+  register: _dotnet_installed
+  ignore_errors: true
+  changed_when: false
+
+- name: Download dotnet-install script
+  ansible.builtin.get_url:
+    url: "https://dot.net/v1/dotnet-install.sh"
+    dest: "/tmp/dotnet-install.sh"
+    mode: "0755"
+    force: true
+  ignore_errors: true
+
+- name: Resolve latest .NET SDK version for channel {{ dotnet_version }}
+  ansible.builtin.shell: >-
+    /tmp/dotnet-install.sh --channel {{ dotnet_version }} --dry-run
+    | sed -n 's/.*--version "\([^"]*\)".*/\1/p'
+    | head -n 1
+  register: _dotnet_latest
+  ignore_errors: true
+  changed_when: false
+
+- name: Install or update .NET SDK in ~/.bench-tools/dotnet
+  ansible.builtin.command: >-
+    /tmp/dotnet-install.sh
+    --channel {{ dotnet_version }}
+    --install-dir "{{ dotnet_dir }}"
+  when: >-
+    _dotnet_installed.failed
+    or not (_dotnet_installed.stdout | default('')) is search('^' ~ dotnet_version)
+    or ((_dotnet_latest.stdout | default('') | trim) != ''
+        and (_dotnet_installed.stdout | default('') | trim) != (_dotnet_latest.stdout | trim))

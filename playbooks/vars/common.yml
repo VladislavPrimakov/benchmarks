@@ -1,0 +1,31 @@
+---
+root_dir: "{{ playbook_dir | regex_replace('/playbooks(/benchmarks)?$', '') }}"
+
+user_home: "{{ lookup('env', 'HOME') }}"
+tools_dir: "{{ user_home }}/.bench-tools"
+results_dir: "{{ tools_dir }}/results"
+dotnet_version: "11.0"
+dotnet_dir: "{{ tools_dir }}/dotnet"
+cargo_home: "{{ tools_dir }}/cargo"
+rustup_home: "{{ tools_dir }}/rustup"
+nginx_dir: "{{ tools_dir }}/nginx"
+
+bench_env:
+  BENCH_RESULTS_DIR: "{{ results_dir }}"
+  DOTNET_ROOT: "{{ dotnet_dir }}"
+  CARGO_HOME: "{{ cargo_home }}"
+  RUSTUP_HOME: "{{ rustup_home }}"
+  PATH: "{{ tools_dir }}:{{ dotnet_dir }}:{{ cargo_home }}/bin:{{ nginx_dir }}/sbin:{{ lookup('env', 'PATH') }}"
+  RUSTFLAGS: "-C target-cpu=native"
+
+c_flags: "-O3 -march=native -flto=auto"
+cpp_flags: "-O3 -march=native -flto=auto -std=c++20"
+
+compile_timeout: 600
+async_poll: 0
+wait_retries: 300
+wait_delay: 1
+
+port_timeout: 10
+bombardier_connections: 125
+bombardier_duration: 60s

@@ -1,0 +1,6 @@
+---
+- name: Update README.md from benchmark results
+  ansible.builtin.command:
+    cmd: python3 convert_results.py
+    chdir: "{{ root_dir }}"
+  changed_when: false

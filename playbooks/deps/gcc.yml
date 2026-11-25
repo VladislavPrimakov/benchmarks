@@ -1,0 +1,21 @@
+---
+- name: Check if gcc is installed
+  ansible.builtin.command: gcc --version
+  register: gcc_check
+  ignore_errors: true
+  changed_when: false
+
+- name: Check if libpcre2-dev is installed
+  ansible.builtin.command: dpkg -s libpcre2-dev
+  register: pcre2_check
+  ignore_errors: true
+  changed_when: false
+
+- name: Install gcc and libpcre2-dev if missing
+  ansible.builtin.apt:
+    name:
+      - gcc
+      - libpcre2-dev
+    state: present
+  become: true
+  when: gcc_check.failed or pcre2_check.failed

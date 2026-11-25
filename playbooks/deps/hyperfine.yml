@@ -1,0 +1,39 @@
+---
+- name: Ensure tools directory exists
+  ansible.builtin.file:
+    path: "{{ tools_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Check installed hyperfine version
+  ansible.builtin.command: "{{ tools_dir }}/hyperfine --version"
+  register: _hyperfine_installed
+  ignore_errors: true
+  changed_when: false
+
+- name: Fetch latest hyperfine release metadata
+  ansible.builtin.uri:
+    url: "https://api.github.com/repos/sharkdp/hyperfine/releases/latest"
+    return_content: true
+  register: _hyperfine_release
+  ignore_errors: true
+
+- name: Install or update hyperfine in ~/.bench-tools
+  ansible.builtin.shell: >-
+    curl -sSL "{{ _hyperfine_url }}"
+    | tar -xz --strip-components=1 -C "{{ tools_dir }}" --wildcards "*/hyperfine"
+    && chmod +x "{{ tools_dir }}/hyperfine"
+  vars:
+    _hyperfine_tag: "{{ (_hyperfine_release.json.tag_name | default('v2.0.0')) }}"
+    _hyperfine_url: >-
+      {{
+        (_hyperfine_release.json.assets | default([])
+          | selectattr('name', 'search', 'x86_64-unknown-linux-musl\\.tar\\.gz$')
+          | map(attribute='browser_download_url')
+          | first)
+        | default('https://github.com/sharkdp/hyperfine/releases/download/' ~ _hyperfine_tag ~ '/hyperfine-' ~ _hyperfine_tag ~ '-x86_64-unknown-linux-musl.tar.gz')
+      }}
+  when: >-
+    _hyperfine_installed.failed
+    or (_hyperfine_release is succeeded
+        and (_hyperfine_release.json.tag_name | regex_replace('^v', '')) not in (_hyperfine_installed.stdout | default('')))

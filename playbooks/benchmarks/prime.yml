@@ -1,0 +1,35 @@
+---
+- name: Run CountPrimeBenchmark
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  vars_files: [../vars/common.yml]
+  environment: "{{ bench_env }}"
+
+  tasks:
+    - name: Setup environment and dependencies
+      ansible.builtin.include_tasks: ../tasks/setup.yml
+      vars:
+        deps: [hyperfine, dotnet, cargo]
+
+    - name: Compile CountPrimeBenchmark
+      ansible.builtin.include_tasks: ../tasks/compile.yml
+      vars:
+        dotnet_projects:
+          - src/CountPrimeBenchmark/cs/CountPrimeBenchmark.csproj
+        rust_manifests:
+          - src/CountPrimeBenchmark/rust/Cargo.toml
+
+    - name: Run hyperfine for CountPrimeBenchmark
+      ansible.builtin.command:
+        cmd: >
+          hyperfine
+          -n "C# (JIT)" "./src/CountPrimeBenchmark/cs/bin/Release/jit/CountPrimeBenchmark"
+          -n "C# (AOT)" "./src/CountPrimeBenchmark/cs/bin/Release/aot/CountPrimeBenchmark"
+          -n "Rust" "./src/CountPrimeBenchmark/rust/target/release/multithread_benchmark"
+          --export-json "{{ results_dir }}/prime.json"
+        chdir: "{{ root_dir }}"
+      changed_when: false
+
+    - name: Update README.md
+      ansible.builtin.include_tasks: ../tasks/update_readme.yml

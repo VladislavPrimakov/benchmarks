@@ -1,0 +1,13 @@
+---
+- name: Check if python3 is installed
+  ansible.builtin.command: python3 --version
+  register: python_check
+  ignore_errors: true
+  changed_when: false
+
+- name: Install python3 if missing
+  ansible.builtin.apt:
+    name: python3
+    state: latest
+  become: true
+  when: python_check.failed

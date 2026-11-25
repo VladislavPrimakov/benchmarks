@@ -1,0 +1,36 @@
+---
+- name: Run StringConcatBenchmark
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  vars_files: [../vars/common.yml]
+  environment: "{{ bench_env }}"
+
+  tasks:
+    - name: Setup environment and dependencies
+      ansible.builtin.include_tasks: ../tasks/setup.yml
+      vars:
+        deps: [hyperfine, dotnet, gcc]
+
+    - name: Compile StringConcatBenchmark
+      ansible.builtin.include_tasks: ../tasks/compile.yml
+      vars:
+        dotnet_projects:
+          - src/StringConcatBenchmark/cs/StringConcatBenchmark.csproj
+        c_sources:
+          - src: src/StringConcatBenchmark/c/StringConcatBenchmark.c
+            out: src/StringConcatBenchmark/c/StringConcatBenchmark_c
+
+    - name: Run hyperfine for StringConcatBenchmark
+      ansible.builtin.command:
+        cmd: >
+          hyperfine -r 3
+          -n "C" "./src/StringConcatBenchmark/c/StringConcatBenchmark_c"
+          -n "C# (JIT)" "./src/StringConcatBenchmark/cs/bin/Release/jit/StringConcatBenchmark"
+          -n "C# (AOT)" "./src/StringConcatBenchmark/cs/bin/Release/aot/StringConcatBenchmark"
+          --export-json "{{ results_dir }}/string_concat.json"
+        chdir: "{{ root_dir }}"
+      changed_when: false
+
+    - name: Update README.md
+      ansible.builtin.include_tasks: ../tasks/update_readme.yml

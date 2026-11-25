@@ -1,0 +1,24 @@
+---
+- name: Import CountPrimeBenchmark
+  ansible.builtin.import_playbook: benchmarks/prime.yml
+
+- name: Import PartitionerBenchmark
+  ansible.builtin.import_playbook: benchmarks/partitioner.yml
+
+- name: Import RegexBenchmark
+  ansible.builtin.import_playbook: benchmarks/regex.yml
+
+- name: Import StringConcatBenchmark
+  ansible.builtin.import_playbook: benchmarks/string.yml
+
+- name: Import WebServerBenchmark
+  ansible.builtin.import_playbook: benchmarks/webserver.yml
+
+- name: Import ProxyServerBenchmark
+  ansible.builtin.import_playbook: benchmarks/proxy.yml
+
+- name: Import ThrowVsResultBenchmark
+  ansible.builtin.import_playbook: benchmarks/throw_vs_result.yml
+
+- name: Import Results Compilation
+  ansible.builtin.import_playbook: results.yml

@@ -1,0 +1,13 @@
+---
+- name: Check if g++ is installed
+  ansible.builtin.command: g++ --version
+  register: gpp_check
+  ignore_errors: true
+  changed_when: false
+
+- name: Install g++ if missing
+  ansible.builtin.apt:
+    name: g++
+    state: latest
+  become: true
+  when: gpp_check.failed

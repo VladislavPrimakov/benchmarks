@@ -1,0 +1,41 @@
+---
+- name: Build parallel compilation command list
+  ansible.builtin.set_fact:
+    _compile_cmds: >-
+      {%- set cmds = [] -%}
+      {%- for proj in dotnet_projects | default([]) -%}
+        {%- set dir = proj | dirname -%}
+        {%- set _ = cmds.append('dotnet build -c Release -o ' ~ dir ~ '/bin/Release/jit /p:TargetFramework=net' ~ dotnet_version ~ ' ' ~ proj) -%}
+        {%- set _ = cmds.append('dotnet publish -c Release -r linux-x64 -o ' ~ dir ~ '/bin/Release/aot /p:PublishAot=true /p:IlcInstructionSet=native /p:OptimizationPreference=Speed /p:TargetFramework=net' ~ dotnet_version ~ ' ' ~ proj) -%}
+      {%- endfor -%}
+      {%- for manifest in rust_manifests | default([]) -%}
+        {%- set _ = cmds.append('cargo build --release --manifest-path ' ~ manifest) -%}
+      {%- endfor -%}
+      {%- for c in c_sources | default([]) -%}
+        {%- set _ = cmds.append(('gcc ' ~ c_flags ~ ' ' ~ c.src ~ ' -o ' ~ c.out ~ ' ' ~ (c.flags | default(''))) | trim) -%}
+      {%- endfor -%}
+      {%- for cpp in cpp_sources | default([]) -%}
+        {%- set _ = cmds.append(('g++ ' ~ cpp_flags ~ ' ' ~ cpp.src ~ ' -o ' ~ cpp.out ~ ' ' ~ (cpp.flags | default(''))) | trim) -%}
+      {%- endfor -%}
+      {{ cmds + (extra_compiles | default([])) }}
+
+- name: Launch parallel compilation jobs
+  ansible.builtin.command:
+    cmd: "{{ item }}"
+    chdir: "{{ root_dir }}"
+  async: "{{ compile_timeout }}"
+  poll: "{{ async_poll }}"
+  register: _compile_jobs
+  changed_when: false
+  loop: "{{ _compile_cmds }}"
+
+- name: Wait for compilation jobs to complete
+  ansible.builtin.async_status:
+    jid: "{{ item.ansible_job_id }}"
+  register: _compile_results
+  until: _compile_results.finished
+  retries: "{{ wait_retries }}"
+  delay: "{{ wait_delay }}"
+  loop: "{{ _compile_jobs.results }}"
+  loop_control:
+    label: "{{ item.item }}"
