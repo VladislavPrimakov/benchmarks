@@ -139,11 +139,11 @@ _Comparing Rust `Result<i32, DomainError>` / `catch_unwind` against C# 15 `[Unio
 <!-- TABLE_START: throw_vs_result_sync -->
 | Variant | Version | Wall [s] | Min..Max [s] | CPU [s] | Peak RAM [MiB] | Instructions | IPC | Cache Miss | Branch Misses | Relative |
 | :------- | :------ | ----------: | ----------------: | ---------: | -------------: | -----------: | --: | ---------: | ------------: | ----------: |
-| [`Rust Result`](src/ThrowVsResultBenchmark/rust/src/main.rs) | `1.100.0` | 0.496 ± 0.033 | 0.474..0.534 | 0.537 | 1.7 | 7.23B | 3.19 | 83.2K (33.5%) | 335.1K | 1.00 ± 0.07 |
-| [`C# TryOut`](src/ThrowVsResultBenchmark/cs/Program.cs) | `11.0.100` | 0.525 ± 0.018 | 0.514..0.546 | 0.562 | 3.5 | 8.73B | 3.67 | 93.9K (35.3%) | 4.1M | 1.06 ± 0.04 |
-| [`C# Result`](src/ThrowVsResultBenchmark/cs/Program.cs) | `11.0.100` | 1.497 ± 0.015 | 1.483..1.512 | 1.626 | 3.5 | 12.39B | 1.77 | 111.0K (29.6%) | 4.2M | 3.02 ± 0.03 |
-| [`C# Throw`](src/ThrowVsResultBenchmark/cs/Program.cs) | `11.0.100` | 27.905 ± 0.146 | 27.736..28.002 | 30.509 | 54.4 | 414.15B | 3.21 | 47.3M (11.8%) | 44.5M | 56.21 ± 0.29 |
-| [`Rust Panic (catch_unwind)`](src/ThrowVsResultBenchmark/rust/src/main.rs) | `1.100.0` | 40.665 ± 0.214 | 40.475..40.896 | 44.474 | 1.8 | 657.66B | 3.46 | 16.5M (8.5%) | 48.6M | 81.91 ± 0.43 |
+| [`Rust Result`](src/ThrowVsResultBenchmark/rust/src/main.rs) | `1.100.0` | 0.515 ± 0.046 | 0.481..0.567 | 0.562 | 1.7 | 8.43B | 3.55 | 38.0K (26.7%) | 310.2K | 1.00 ± 0.09 |
+| [`C# TryOut`](src/ThrowVsResultBenchmark/cs/Program.cs) | `11.0.100` | 0.526 ± 0.009 | 0.516..0.533 | 0.567 | 3.5 | 8.73B | 3.68 | 82.7K (35.9%) | 4.2M | 1.02 ± 0.02 |
+| [`C# Result`](src/ThrowVsResultBenchmark/cs/Program.cs) | `11.0.100` | 1.508 ± 0.046 | 1.463..1.556 | 1.652 | 3.5 | 12.39B | 1.74 | 123.8K (32.3%) | 4.1M | 2.93 ± 0.09 |
+| [`C# Throw`](src/ThrowVsResultBenchmark/cs/Program.cs) | `11.0.100` | 27.247 ± 0.172 | 27.048..27.348 | 30.051 | 54.4 | 414.15B | 3.23 | 46.0M (11.8%) | 44.2M | 52.94 ± 0.33 |
+| [`Rust Panic (catch_unwind)`](src/ThrowVsResultBenchmark/rust/src/main.rs) | `1.100.0` | 40.776 ± 0.164 | 40.623..40.949 | 44.987 | 1.7 | 658.86B | 3.42 | 18.8M (16.3%) | 49.9M | 79.23 ± 0.32 |
 <!-- TABLE_END: throw_vs_result_sync -->
 
 ### Async (80M operations)
@@ -151,11 +151,11 @@ _Comparing Rust `Result<i32, DomainError>` / `catch_unwind` against C# 15 `[Unio
 <!-- TABLE_START: throw_vs_result_async -->
 | Variant | Version | Wall [s] | Min..Max [s] | CPU [s] | Peak RAM [MiB] | Instructions | IPC | Cache Miss | Branch Misses | Relative |
 | :------- | :------ | ----------: | ----------------: | ---------: | -------------: | -----------: | --: | ---------: | ------------: | ----------: |
-| [`Rust AsyncResult`](src/ThrowVsResultBenchmark/rust/src/main.rs) | `1.100.0` | 0.475 ± 0.002 | 0.473..0.476 | 0.514 | 1.8 | 3.05B | 1.37 | 34.4K (28.4%) | 388.3K | 1.00 ± 0.00 |
-| [`C# AsyncResult (runtime-async)`](src/ThrowVsResultBenchmark/cs/Program.cs) | `11.0.100` | 0.512 ± 0.003 | 0.510..0.515 | 0.548 | 3.5 | 6.27B | 2.70 | 83.7K (35.3%) | 4.9M | 1.08 ± 0.01 |
-| [`C# AsyncResult (no runtime-async)`](src/ThrowVsResultBenchmark/cs/Program.cs) | `11.0.100` | 2.111 ± 0.022 | 2.086..2.128 | 2.297 | 3.5 | 17.08B | 1.75 | 435.9K (35.5%) | 7.8M | 4.44 ± 0.05 |
-| [`C# AsyncThrow (runtime-async)`](src/ThrowVsResultBenchmark/cs/Program.cs) | `11.0.100` | 8.643 ± 0.066 | 8.584..8.714 | 9.440 | 51.8 | 131.34B | 3.30 | 14.4M (12.5%) | 12.8M | 18.21 ± 0.14 |
-| [`C# AsyncThrow (no runtime-async)`](src/ThrowVsResultBenchmark/cs/Program.cs) | `11.0.100` | 22.745 ± 0.032 | 22.720..22.781 | 24.865 | 52.4 | 325.94B | 3.09 | 69.7M (6.3%) | 89.7M | 47.84 ± 0.07 |
+| [`Rust AsyncResult`](src/ThrowVsResultBenchmark/rust/src/main.rs) | `1.100.0` | 0.487 ± 0.002 | 0.484..0.488 | 0.532 | 1.7 | 3.29B | 1.44 | 42.4K (31.8%) | 867.5K | 1.00 ± 0.00 |
+| [`C# AsyncResult (runtime-async)`](src/ThrowVsResultBenchmark/cs/Program.cs) | `11.0.100` | 0.528 ± 0.014 | 0.512..0.536 | 0.570 | 3.5 | 6.27B | 2.57 | 74.5K (33.9%) | 4.9M | 1.08 ± 0.03 |
+| [`C# AsyncResult (no runtime-async)`](src/ThrowVsResultBenchmark/cs/Program.cs) | `11.0.100` | 2.047 ± 0.026 | 2.023..2.075 | 2.247 | 3.4 | 17.08B | 1.77 | 300.8K (32.5%) | 7.8M | 4.21 ± 0.05 |
+| [`C# AsyncThrow (runtime-async)`](src/ThrowVsResultBenchmark/cs/Program.cs) | `11.0.100` | 8.600 ± 0.068 | 8.530..8.667 | 9.476 | 51.8 | 131.34B | 3.26 | 14.0M (11.1%) | 12.5M | 17.67 ± 0.14 |
+| [`C# AsyncThrow (no runtime-async)`](src/ThrowVsResultBenchmark/cs/Program.cs) | `11.0.100` | 22.229 ± 0.186 | 22.029..22.397 | 24.515 | 52.3 | 326.05B | 3.11 | 70.4M (6.4%) | 88.4M | 45.68 ± 0.38 |
 <!-- TABLE_END: throw_vs_result_async -->
 
 ## 8. LinqBenchmark (C# LINQ vs Struct Functor vs Rust Iterator)

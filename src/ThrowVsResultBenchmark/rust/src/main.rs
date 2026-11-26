@@ -1,4 +1,5 @@
 use std::future::Future;
+use std::hint::black_box;
 use std::panic::{self, AssertUnwindSafe};
 use std::pin::pin;
 use std::task::{Context, Poll, RawWaker, RawWakerVTable, Waker};
@@ -48,33 +49,37 @@ fn main() {
 }
 
 fn run_result(pattern: &[bool; PATTERN_LENGTH], iterations: usize) -> i64 {
+    let pattern = black_box(pattern);
     let mut sum: i64 = 0;
     for i in 0..iterations {
-        sum += match execute_result(i as i32, pattern[i & PATTERN_MASK]) {
+        sum += match execute_result(black_box(i as i32), black_box(pattern[i & PATTERN_MASK])) {
             Ok(ok) => ok as i64,
             Err(err) => -(err.code as i64) - (err.message.len() as i64),
         };
     }
-    sum
+    black_box(sum)
 }
 
 async fn run_async_result(pattern: &[bool; PATTERN_LENGTH], iterations: usize) -> i64 {
+    let pattern = black_box(pattern);
     let mut sum: i64 = 0;
     for i in 0..iterations {
-        sum += match execute_result_async(i as i32, pattern[i & PATTERN_MASK]).await {
+        sum += match execute_result_async(black_box(i as i32), black_box(pattern[i & PATTERN_MASK])).await {
             Ok(ok) => ok as i64,
             Err(err) => -(err.code as i64) - (err.message.len() as i64),
         };
     }
-    sum
+    black_box(sum)
 }
 
 fn run_panic(pattern: &[bool; PATTERN_LENGTH], iterations: usize) -> i64 {
     panic::set_hook(Box::new(|_| {}));
+    let pattern = black_box(pattern);
     let mut sum: i64 = 0;
     for i in 0..iterations {
-        let fail = pattern[i & PATTERN_MASK];
-        match panic::catch_unwind(AssertUnwindSafe(|| execute_panic(i as i32, fail))) {
+        let input = black_box(i as i32);
+        let fail = black_box(pattern[i & PATTERN_MASK]);
+        match panic::catch_unwind(AssertUnwindSafe(|| execute_panic(input, fail))) {
             Ok(ok) => sum += ok as i64,
             Err(payload) => {
                 if let Some(err) = payload.downcast_ref::<DomainError>() {
@@ -83,7 +88,7 @@ fn run_panic(pattern: &[bool; PATTERN_LENGTH], iterations: usize) -> i64 {
             }
         }
     }
-    sum
+    black_box(sum)
 }
 
 #[inline(never)]
